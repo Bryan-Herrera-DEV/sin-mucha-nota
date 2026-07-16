@@ -1,6 +1,7 @@
 const GITHUB_API_URL = 'https://api.github.com'
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth'
 const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
+const DEV_GITHUB_OAUTH_PROXY_BASE = '/github-oauth'
 
 export type GithubDeviceCodeResponse = {
   device_code: string
@@ -180,7 +181,7 @@ export function decodeGithubBlobContent(blob: GithubBlobResponse): string {
 }
 
 async function fetchGithubOAuth<T>(path: string, body: Record<string, string>): Promise<T> {
-  const response = await fetch(`${GITHUB_OAUTH_URL}/${path}`, {
+  const response = await fetch(createGithubOAuthUrl(path, `${GITHUB_OAUTH_URL}/${path}`), {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -198,7 +199,7 @@ async function fetchGithubOAuth<T>(path: string, body: Record<string, string>): 
 }
 
 async function fetchGithubDeviceCode<T>(body: Record<string, string>): Promise<T> {
-  const response = await fetch(GITHUB_DEVICE_CODE_URL, {
+  const response = await fetch(createGithubOAuthUrl('device/code', GITHUB_DEVICE_CODE_URL), {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -213,6 +214,24 @@ async function fetchGithubDeviceCode<T>(body: Record<string, string>): Promise<T
   }
 
   return payload
+}
+
+function createGithubOAuthUrl(path: string, fallbackUrl: string): string {
+  const proxyBaseUrl = import.meta.env.VITE_GITHUB_OAUTH_PROXY_URL?.trim().replace(/\/$/, '')
+
+  if (proxyBaseUrl) {
+    return `${proxyBaseUrl}/${path}`
+  }
+
+  if (import.meta.env.DEV) {
+    return `${DEV_GITHUB_OAUTH_PROXY_BASE}/${path}`
+  }
+
+  if (import.meta.env.PROD) {
+    throw new Error('Configura VITE_GITHUB_OAUTH_PROXY_URL para usar OAuth de GitHub en produccion.')
+  }
+
+  return fallbackUrl
 }
 
 async function fetchGithubApi<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
