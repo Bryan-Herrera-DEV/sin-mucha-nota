@@ -5,11 +5,12 @@ import type { ThemeId, UserPreferences } from '@/domain/preferences/preferences'
 import { nowIso, type ISODate } from '@/domain/shared/valueObjects'
 
 const DATABASE_NAME = 'notas-crema'
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 const ACTIVE_PREFERENCES_ID = 'active'
 const GITHUB_AUTH_ID = 'auth'
 const GITHUB_CONFIG_ID = 'config'
 const GITHUB_SYNC_STATE_ID = 'state'
+const LOCAL_WORKSPACE_META_ID = 'local'
 
 type StoredPreferences = Omit<UserPreferences, 'themeId'> & { themeId?: ThemeId; id: typeof ACTIVE_PREFERENCES_ID }
 
@@ -55,6 +56,11 @@ export type GithubSyncState = {
   updatedAt: ISODate
 }
 
+export type LocalWorkspaceMeta = {
+  id: typeof LOCAL_WORKSPACE_META_ID
+  updatedAt: ISODate
+}
+
 interface NotasCremaDatabase extends DBSchema {
   folders: {
     key: string
@@ -83,6 +89,10 @@ interface NotasCremaDatabase extends DBSchema {
   githubSyncState: {
     key: typeof GITHUB_SYNC_STATE_ID
     value: GithubSyncState
+  }
+  localWorkspaceMeta: {
+    key: typeof LOCAL_WORKSPACE_META_ID
+    value: LocalWorkspaceMeta
   }
 }
 
@@ -117,6 +127,10 @@ export function getLocalDatabase(): Promise<IDBPDatabase<NotasCremaDatabase>> {
 
       if (!database.objectStoreNames.contains('githubSyncState')) {
         database.createObjectStore('githubSyncState', { keyPath: 'id' })
+      }
+
+      if (!database.objectStoreNames.contains('localWorkspaceMeta')) {
+        database.createObjectStore('localWorkspaceMeta', { keyPath: 'id' })
       }
     },
   })
@@ -282,6 +296,24 @@ export async function saveGithubSyncState(state: Omit<GithubSyncState, 'id' | 'u
 export async function deleteGithubSyncState(): Promise<void> {
   const database = await getLocalDatabase()
   await database.delete('githubSyncState', GITHUB_SYNC_STATE_ID)
+}
+
+export async function loadLocalWorkspaceMeta(): Promise<LocalWorkspaceMeta | null> {
+  const database = await getLocalDatabase()
+
+  return (await database.get('localWorkspaceMeta', LOCAL_WORKSPACE_META_ID)) ?? null
+}
+
+export async function markLocalWorkspaceChanged(updatedAt: ISODate = nowIso()): Promise<LocalWorkspaceMeta> {
+  const database = await getLocalDatabase()
+  const meta: LocalWorkspaceMeta = {
+    id: LOCAL_WORKSPACE_META_ID,
+    updatedAt,
+  }
+
+  await database.put('localWorkspaceMeta', meta)
+
+  return meta
 }
 
 function normalizeFolder(folder: Folder): Folder {

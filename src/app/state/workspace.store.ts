@@ -13,6 +13,7 @@ import {
 import type { ISODate } from '@/domain/shared/valueObjects'
 import { getVisibleNotes } from '@/application/workspace/noteFilters'
 import { workspaceService } from '@/application/workspace/workspaceService'
+import { loadGithubAuth, loadGithubConfig, loadGithubSyncState, type GithubAuth, type GithubSyncConfig, type GithubSyncState } from '@/infrastructure/db/localDatabase'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
@@ -45,6 +46,9 @@ type WorkspaceState = {
   settingsOpen: boolean
   sidebarCollapsed: boolean
   lastSavedAt: ISODate | null
+  githubAuth: GithubAuth | null
+  githubConfig: GithubSyncConfig | null
+  githubSyncState: GithubSyncState | null
   errorMessage: string | null
 }
 
@@ -66,6 +70,7 @@ type WorkspaceActions = {
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
   setSidebarCollapsed(collapsed: boolean): void
+  loadGithubSettings(): Promise<void>
   updatePreferences(patch: Partial<Omit<UserPreferences, 'onboardedAt' | 'updatedAt' | 'accentColor'> & { accentColor: string }>): Promise<void>
 }
 
@@ -91,6 +96,9 @@ const initialWorkspaceState: WorkspaceState = {
   settingsOpen: false,
   sidebarCollapsed: false,
   lastSavedAt: null,
+  githubAuth: null,
+  githubConfig: null,
+  githubSyncState: null,
   errorMessage: null,
 }
 
@@ -111,6 +119,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           try {
             const snapshot = await workspaceService.loadSnapshot()
             await workspaceService.mirrorNoteFilesToIndexedDb(snapshot.notes)
+            const [githubAuth, githubConfig, githubSyncState] = await Promise.all([loadGithubAuth(), loadGithubConfig(), loadGithubSyncState()])
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
             const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
             const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
@@ -129,6 +138,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               bootStatus: 'ready',
               contentStatus: activeNote ? 'ready' : 'idle',
               lastSavedAt: activeNote?.updatedAt ?? null,
+              githubAuth,
+              githubConfig,
+              githubSyncState,
             })
           } catch (error) {
             set({ bootStatus: 'error', contentStatus: 'error', errorMessage: getErrorMessage(error) })
@@ -388,6 +400,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         },
         setSidebarCollapsed(collapsed) {
           set({ sidebarCollapsed: collapsed })
+        },
+        async loadGithubSettings() {
+          const [githubAuth, githubConfig, githubSyncState] = await Promise.all([loadGithubAuth(), loadGithubConfig(), loadGithubSyncState()])
+
+          set({ githubAuth, githubConfig, githubSyncState })
         },
         async updatePreferences(patch) {
           const preferences = get().preferences

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AppShell } from '@/app/shell/AppShell'
 import { OnboardingPage } from '@/features/onboarding/OnboardingPage'
 import { useThemeBridge } from '@/shared/hooks/useThemeBridge'
+import { useGithubSyncWorkerBridge } from '@/application/sync/githubSyncWorkerBridge'
 import { Button } from '@/shared/ui/Button'
 import { translate } from '@/app/i18n/translations'
 import { selectHasOnboarding } from '@/app/state/selectors'
@@ -14,6 +15,7 @@ function App() {
   const hasOnboarding = useWorkspaceStore(selectHasOnboarding)
   const bootstrap = useWorkspaceStore((state) => state.bootstrap)
   useThemeBridge()
+  useGithubSyncWorkerBridge()
 
   useEffect(() => {
     const unsubscribe = useWorkspaceStore.persist.onFinishHydration(() => setUiHydrated(true))

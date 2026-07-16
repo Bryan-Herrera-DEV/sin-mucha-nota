@@ -17,6 +17,7 @@ import {
   listFolders,
   listNotes,
   loadPreferences,
+  markLocalWorkspaceChanged,
   saveFolder,
   saveNote,
   saveStoredFile,
@@ -141,6 +142,7 @@ class WorkspaceService {
       this.fileStorage.deleteFile(note.contentRef.markdownPath),
       this.fileStorage.deleteFile(note.contentRef.drawingPath),
     ])
+    await markLocalWorkspaceChanged()
   }
 
   async deleteFolder(folderId: FolderId, folders: Folder[], notes: Note[]): Promise<{ deletedFolderIds: FolderId[]; deletedNoteIds: NoteId[] }> {
@@ -151,6 +153,7 @@ class WorkspaceService {
       ...folderIds.map((id) => deleteFolderById(id)),
       ...notesToDelete.map((note) => this.deleteNote(note)),
     ])
+    await markLocalWorkspaceChanged()
 
     return {
       deletedFolderIds: folderIds,
