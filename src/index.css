@@ -11,19 +11,19 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-ui);
   --font-serif: var(--font-editor);
-  --shadow-soft: 0 24px 80px rgb(103 75 45 / 0.16);
+  --shadow-soft: 0 30px 90px rgb(126 96 56 / 0.14);
 }
 
 :root {
-  --cream: #fff8ec;
-  --cream-strong: #f5dfbf;
-  --paper: #fffdf7;
-  --paper-soft: #fff3df;
+  --cream: #fbf7ed;
+  --cream-strong: #f1dfc4;
+  --paper: #fffefa;
+  --paper-soft: #fbf4e8;
   --ink: #2f261f;
-  --muted: #7c6b5d;
-  --line: #ead8bd;
+  --muted: #8b7f72;
+  --line: #eee3d3;
   --accent: #c7774a;
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
   --accent-strong: color-mix(in srgb, var(--accent) 82%, #402217 18%);
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-editor: Georgia, "Times New Roman", serif;
@@ -56,13 +56,16 @@ body[data-font='rounded'] {
 }
 
 html {
-  background: radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28rem), var(--cream);
+  background:
+    radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 24rem),
+    linear-gradient(180deg, #fffdf8 0%, var(--cream) 52%, #f4e8d5 100%);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100svh;
+  background: transparent;
 }
 
 button,

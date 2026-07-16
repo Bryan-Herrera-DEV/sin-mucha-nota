@@ -36,13 +36,39 @@ export function Sidebar() {
   })
 
   return (
-    <aside className="flex max-h-none flex-col rounded-[2rem] border border-line bg-paper/95 p-4 shadow-soft backdrop-blur lg:max-h-[calc(100svh-1.5rem)] lg:w-[22rem]">
+    <aside className="grid min-h-0 border-b border-line/80 bg-paper/70 lg:w-[27rem] lg:grid-cols-[4.6rem_minmax(0,1fr)] lg:border-b-0 lg:border-r">
+      <nav className="hidden flex-col items-center gap-4 border-r border-line/70 px-4 py-5 lg:flex">
+        <div className="mb-2 grid h-9 w-9 place-items-center rounded-2xl bg-ink text-xs font-black text-paper">NC</div>
+        <button className="grid h-9 w-9 place-items-center rounded-2xl text-muted transition hover:bg-paper-soft hover:text-ink" type="button">
+          <FileText size={17} />
+        </button>
+        <button className="grid h-9 w-9 place-items-center rounded-2xl text-muted transition hover:bg-paper-soft hover:text-ink" type="button">
+          <Folder size={17} />
+        </button>
+        <button className="grid h-9 w-9 place-items-center rounded-2xl text-muted transition hover:bg-paper-soft hover:text-ink" type="button">
+          <Trash2 size={17} />
+        </button>
+        <button
+          aria-label={t('settings')}
+          className="mt-auto grid h-9 w-9 place-items-center rounded-2xl text-muted transition hover:bg-paper-soft hover:text-ink"
+          onClick={() => {
+            play('open')
+            setSettingsOpen(true)
+          }}
+          type="button"
+        >
+          <Settings size={17} />
+        </button>
+      </nav>
+
+      <div className="flex max-h-none flex-col p-4 lg:max-h-[calc(100svh-4.5rem)] lg:p-5">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted">{t('appName')}</p>
           <h2 className="text-xl font-black tracking-[-0.04em] text-ink">{preferences?.displayName}</h2>
         </div>
         <Button
+          className="lg:hidden"
           aria-label={t('settings')}
           onClick={() => {
             play('open')
@@ -58,7 +84,7 @@ export function Sidebar() {
       <label className="relative mb-4 block">
         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={17} />
         <input
-          className="h-11 w-full rounded-2xl border border-line bg-paper-soft pl-10 pr-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+          className="h-10 w-full rounded-full border border-line/80 bg-white/70 pl-10 pr-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
           placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(event) => {
@@ -68,7 +94,7 @@ export function Sidebar() {
         />
       </label>
 
-      <section className="rounded-3xl border border-line bg-cream/50 p-3">
+      <section className="rounded-[1.7rem] border border-line/80 bg-white/45 p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-black text-ink">{t('folders')}</p>
           <Button
@@ -116,7 +142,7 @@ export function Sidebar() {
           }}
         >
           <input
-            className="min-w-0 flex-1 rounded-2xl border border-line bg-paper px-3 text-sm outline-none focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 rounded-full border border-line/80 bg-paper px-3 text-sm outline-none focus:border-[var(--accent)]"
             placeholder={activeFolderId ? t('newSubfolder') : t('folderNamePlaceholder')}
             value={folderName}
             onChange={(event) => setFolderName(event.target.value)}
@@ -127,7 +153,7 @@ export function Sidebar() {
         </form>
       </section>
 
-      <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-3xl border border-line bg-paper-soft/70 p-3">
+      <section className="mt-4 flex min-h-0 flex-1 flex-col rounded-[1.7rem] border border-line/80 bg-paper-soft/45 p-3">
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm font-black text-ink">{t('notes')}</p>
           <span className="rounded-full bg-paper px-2 py-1 text-xs font-bold text-muted">{visibleNotes.length}</span>
@@ -148,7 +174,7 @@ export function Sidebar() {
           }}
         >
           <input
-            className="min-w-0 flex-1 rounded-2xl border border-line bg-paper px-3 text-sm outline-none focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 rounded-full border border-line/80 bg-paper px-3 text-sm outline-none focus:border-[var(--accent)]"
             placeholder={t('noteNamePlaceholder')}
             value={noteTitle}
             onChange={(event) => setNoteTitle(event.target.value)}
@@ -163,7 +189,7 @@ export function Sidebar() {
             <article
               className={cn(
                 'group rounded-2xl border p-3 transition',
-                activeNoteId === note.id ? 'border-[var(--accent)] bg-paper shadow-soft' : 'border-line bg-paper/70 hover:border-[var(--accent)]',
+                activeNoteId === note.id ? 'border-transparent bg-accent/85 shadow-[0_18px_45px_color-mix(in_srgb,var(--accent)_18%,transparent)]' : 'border-transparent bg-transparent hover:bg-paper',
               )}
               key={note.id}
             >
@@ -195,6 +221,7 @@ export function Sidebar() {
           ))}
         </div>
       </section>
+      </div>
     </aside>
   )
 }

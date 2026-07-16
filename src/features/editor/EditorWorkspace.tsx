@@ -51,7 +51,7 @@ export function EditorWorkspace() {
 
   if (!activeNote) {
     return (
-      <main className="grid min-h-[32rem] flex-1 place-items-center rounded-[2rem] border border-line bg-paper/90 p-6 shadow-soft">
+      <main className="grid min-h-[32rem] flex-1 place-items-center bg-paper p-6">
         <div className="max-w-md text-center">
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-muted">Markdown + Excalidraw</p>
           <h1 className="mt-4 text-4xl font-black tracking-[-0.05em] text-ink">{t('noNoteTitle')}</h1>
@@ -62,11 +62,11 @@ export function EditorWorkspace() {
   }
 
   return (
-    <main className="flex min-h-[calc(100svh-1.5rem)] flex-1 flex-col rounded-[2rem] border border-line bg-paper/90 p-4 shadow-soft backdrop-blur">
-      <header className="flex flex-col gap-4 border-b border-line pb-4 xl:flex-row xl:items-center xl:justify-between">
+    <main className="flex min-h-[calc(100svh-2rem)] flex-1 flex-col bg-paper p-5 lg:min-h-[calc(100svh-4.5rem)] lg:p-8">
+      <header className="flex flex-col gap-4 pb-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 flex-1">
           <input
-            className="w-full bg-transparent text-3xl font-black tracking-[-0.05em] text-ink outline-none sm:text-5xl"
+            className="w-full bg-transparent text-3xl font-black tracking-[-0.05em] text-ink outline-none sm:text-4xl"
             value={titleDraft}
             onBlur={() => void renameActiveNote(titleDraft)}
             onChange={(event) => setTitleDraft(event.target.value)}
@@ -79,7 +79,7 @@ export function EditorWorkspace() {
 
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="h-10 rounded-full border border-line bg-paper-soft px-3 text-sm font-bold text-ink outline-none focus:border-[var(--accent)]"
+            className="h-10 rounded-full border border-line/80 bg-paper-soft px-3 text-sm font-bold text-ink outline-none focus:border-[var(--accent)]"
             value={activeNote.folderId ?? ''}
             onChange={(event) => void moveActiveNote((event.target.value || null) as FolderId | null)}
           >
@@ -104,7 +104,7 @@ export function EditorWorkspace() {
         </div>
       </header>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 border-y border-line/70 py-3">
         {editorModes.map((mode) => (
           <Button
             key={mode}
@@ -122,14 +122,14 @@ export function EditorWorkspace() {
 
       <section
         className={cn(
-          'mt-4 grid min-h-0 flex-1 gap-4',
+          'mt-5 grid min-h-0 flex-1 gap-5',
           editorMode === 'split' && 'lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]',
           editorMode !== 'split' && 'grid-cols-1',
         )}
       >
         {(editorMode === 'split' || editorMode === 'markdown') && (
           <textarea
-            className="min-h-[28rem] resize-none rounded-[1.5rem] border border-line bg-paper-soft p-5 font-serif text-base leading-8 text-ink outline-none shadow-inner transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            className="min-h-[28rem] resize-none rounded-[1.4rem] border border-line/80 bg-paper-soft/70 p-5 font-serif text-base leading-8 text-ink outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
             placeholder={t('editorPlaceholder')}
             value={markdownDraft}
             onChange={(event) => updateMarkdownDraft(event.target.value)}

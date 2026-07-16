@@ -18,7 +18,7 @@ export function SettingsPanel() {
   }
 
   return (
-    <aside className="mt-3 flex max-h-none flex-col rounded-[2rem] border border-line bg-paper/95 p-4 shadow-soft backdrop-blur lg:mt-0 lg:max-h-[calc(100svh-1.5rem)] lg:w-[21rem]">
+    <aside className="flex h-full max-h-none flex-col rounded-[2rem] border border-line/80 bg-paper/95 p-4 shadow-soft backdrop-blur lg:max-h-full">
       <header className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted">{t('settings')}</p>
