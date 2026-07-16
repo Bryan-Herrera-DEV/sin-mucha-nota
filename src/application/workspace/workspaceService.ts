@@ -19,6 +19,7 @@ import {
   loadPreferences,
   saveFolder,
   saveNote,
+  saveStoredFile,
   savePreferences,
 } from '@/infrastructure/db/localDatabase'
 import { createFileStorage, type FileStorage, type FileStorageMode } from '@/infrastructure/storage/fileStorage'
@@ -107,6 +108,19 @@ class WorkspaceService {
       markdown: markdown ?? '',
       drawing: drawing ?? createEmptyDrawing(),
     }
+  }
+
+  async mirrorNoteFilesToIndexedDb(notes: Note[]): Promise<void> {
+    await Promise.all(
+      notes.map(async (note) => {
+        const content = await this.loadNoteContent(note)
+
+        await Promise.all([
+          saveStoredFile({ path: note.contentRef.markdownPath, content: content.markdown, kind: 'text' }),
+          saveStoredFile({ path: note.contentRef.drawingPath, content: JSON.stringify(content.drawing), kind: 'json' }),
+        ])
+      }),
+    )
   }
 
   async saveNoteContent(note: Note, content: NoteContent): Promise<Note> {

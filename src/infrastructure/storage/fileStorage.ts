@@ -35,13 +35,24 @@ class OriginPrivateFileStorage implements FileStorage {
   readonly mode = 'opfs'
 
   async readText(path: string): Promise<string | null> {
+    const indexedFile = await loadStoredFile(path)
+
     try {
       const fileHandle = await this.getFileHandle(path, false)
       const file = await fileHandle.getFile()
+      const indexedUpdatedAt = indexedFile ? new Date(indexedFile.updatedAt).getTime() : 0
 
-      return file.text()
+      if (indexedFile && indexedUpdatedAt >= file.lastModified) {
+        return indexedFile.content
+      }
+
+      const content = await file.text()
+
+      await saveStoredFile({ path, content, kind: 'text' })
+
+      return content
     } catch {
-      return null
+      return indexedFile?.content ?? null
     }
   }
 
@@ -51,6 +62,7 @@ class OriginPrivateFileStorage implements FileStorage {
 
     await writable.write(content)
     await writable.close()
+    await saveStoredFile({ path, content, kind: 'text' })
   }
 
   async readJson<T>(path: string): Promise<T | null> {

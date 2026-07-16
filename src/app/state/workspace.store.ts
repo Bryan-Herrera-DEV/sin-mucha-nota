@@ -110,6 +110,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
           try {
             const snapshot = await workspaceService.loadSnapshot()
+            await workspaceService.mirrorNoteFilesToIndexedDb(snapshot.notes)
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
             const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
             const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
