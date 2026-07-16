@@ -26,6 +26,7 @@ import {
 import {
   createGithubBlob,
   createGithubCommit,
+  createGithubFile,
   createGithubTree,
   decodeGithubBlobContent,
   getGithubBlob,
@@ -65,8 +66,9 @@ type RemoteWorkspaceSnapshot = {
   document: GithubWorkspaceDocument | null
   files: Map<string, string>
   remotePaths: Set<string>
-  headSha: string
-  treeSha: string
+  headSha: string | null
+  treeSha: string | null
+  empty: boolean
 }
 
 type SyncFile = {
@@ -149,7 +151,18 @@ async function createLocalWorkspaceSnapshot(config: GithubSyncConfig): Promise<L
 }
 
 async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSyncConfig): Promise<RemoteWorkspaceSnapshot> {
-  const ref = await getGithubBranchRef(accessToken, config.owner, config.repo, config.branch)
+  const ref = await getGithubBranchRef(accessToken, config.owner, config.repo, config.branch).catch((error: unknown) => {
+    if (isEmptyRepositoryError(error)) {
+      return null
+    }
+
+    throw error
+  })
+
+  if (!ref) {
+    return { document: null, files: new Map(), remotePaths: new Set(), headSha: null, treeSha: null, empty: true }
+  }
+
   const commit = await getGithubCommit(accessToken, config.owner, config.repo, ref.object.sha)
   const tree = await getGithubTree(accessToken, config.owner, config.repo, commit.tree.sha)
   const remoteEntries = createTreeEntryMap(tree.tree)
@@ -157,7 +170,7 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
   const workspaceEntry = remoteEntries.get(createWorkspacePath(config))
 
   if (!workspaceEntry?.sha) {
-    return { document: null, files: new Map(), remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha }
+    return { document: null, files: new Map(), remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false }
   }
 
   const workspaceContent = await readRemoteBlob(accessToken, config, workspaceEntry.sha)
@@ -174,7 +187,7 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
     files.set(drawingPath, drawingEntry?.sha ? await readRemoteBlob(accessToken, config, drawingEntry.sha) : JSON.stringify(createEmptyDrawing(), null, 2))
   }
 
-  return { document, files, remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha }
+  return { document, files, remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false }
 }
 
 async function readRemoteBlob(accessToken: string, config: GithubSyncConfig, blobSha: string): Promise<string> {
@@ -184,6 +197,20 @@ async function readRemoteBlob(accessToken: string, config: GithubSyncConfig, blo
 }
 
 async function pushLocalWorkspaceSnapshot(accessToken: string, config: GithubSyncConfig, localSnapshot: LocalWorkspaceSnapshot, remoteSnapshot: RemoteWorkspaceSnapshot): Promise<void> {
+  if (remoteSnapshot.empty) {
+    await initializeEmptyRepository(accessToken, config, localSnapshot)
+
+    const initializedRemoteSnapshot = await readRemoteWorkspaceSnapshot(accessToken, config)
+
+    await pushLocalWorkspaceSnapshot(accessToken, config, localSnapshot, initializedRemoteSnapshot)
+
+    return
+  }
+
+  if (!remoteSnapshot.headSha || !remoteSnapshot.treeSha) {
+    throw new Error('No se pudo leer la rama de GitHub para sincronizar')
+  }
+
   const localPaths = new Set(localSnapshot.files.map((file) => file.path))
   const treeEntries: GithubTreeUpdateEntry[] = []
 
@@ -203,6 +230,16 @@ async function pushLocalWorkspaceSnapshot(accessToken: string, config: GithubSyn
   const commit = await createGithubCommit(accessToken, config.owner, config.repo, GITHUB_COMMIT_MESSAGE, tree.sha, remoteSnapshot.headSha)
 
   await updateGithubBranchRef(accessToken, config.owner, config.repo, config.branch, commit.sha)
+}
+
+async function initializeEmptyRepository(accessToken: string, config: GithubSyncConfig, localSnapshot: LocalWorkspaceSnapshot): Promise<void> {
+  const workspaceFile = localSnapshot.files.find((file) => file.path === createWorkspacePath(config))
+
+  if (!workspaceFile) {
+    throw new Error('No se encontro el archivo inicial del workspace')
+  }
+
+  await createGithubFile(accessToken, config.owner, config.repo, workspaceFile.path, workspaceFile.content, 'sync: inicializar notas')
 }
 
 async function applyRemoteWorkspaceSnapshot(document: GithubWorkspaceDocument, files: Map<string, string>, config: GithubSyncConfig): Promise<void> {
@@ -276,6 +313,10 @@ function maxIso(values: Array<ISODate | null | undefined>): ISODate {
 
 function toTime(value: ISODate | null | undefined): number {
   return value ? new Date(value).getTime() : 0
+}
+
+function isEmptyRepositoryError(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes('git repository is empty')
 }
 
 function nowIso(): ISODate {

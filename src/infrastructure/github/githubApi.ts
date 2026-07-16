@@ -80,6 +80,16 @@ export type GithubCreatedCommitResponse = {
   sha: string
 }
 
+export type GithubCreatedContentResponse = {
+  content: {
+    path: string
+    sha: string
+  }
+  commit: {
+    sha: string
+  }
+}
+
 export type GithubTreeUpdateEntry = {
   path: string
   mode: '100644'
@@ -169,6 +179,13 @@ export async function updateGithubBranchRef(accessToken: string, owner: string, 
   await fetchGithubApi<unknown>(accessToken, `/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`, {
     method: 'PATCH',
     body: JSON.stringify({ sha: commitSha, force: false }),
+  })
+}
+
+export async function createGithubFile(accessToken: string, owner: string, repo: string, path: string, content: string, message: string): Promise<GithubCreatedContentResponse> {
+  return fetchGithubApi<GithubCreatedContentResponse>(accessToken, `/repos/${owner}/${repo}/contents/${encodePath(path)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ message, content: encodeBase64(content) }),
   })
 }
 
@@ -289,4 +306,11 @@ function decodeBase64(content: string): string {
   }
 
   return new TextDecoder().decode(bytes)
+}
+
+function encodePath(path: string): string {
+  return path
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/')
 }
