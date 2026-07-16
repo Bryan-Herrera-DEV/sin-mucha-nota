@@ -18,11 +18,11 @@ export function SettingsPanel() {
   }
 
   return (
-    <aside className="flex h-full max-h-none flex-col rounded-[2rem] border border-line/80 bg-paper/95 p-4 shadow-soft backdrop-blur lg:max-h-full">
+    <aside className="flex h-full max-h-none flex-col rounded-[2rem] border border-white/12 bg-[#14251f]/95 p-4 text-[#e8efe5] shadow-soft backdrop-blur lg:max-h-full">
       <header className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted">{t('settings')}</p>
-          <h2 className="text-2xl font-black tracking-[-0.05em] text-ink">{t('interface')}</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8fa89b]">{t('settings')}</p>
+          <h2 className="text-2xl font-black tracking-[-0.05em] text-white">{t('interface')}</h2>
         </div>
         <Button
           aria-label={t('close')}
@@ -38,20 +38,20 @@ export function SettingsPanel() {
       </header>
 
       <div className="space-y-5 overflow-auto pr-1">
-        <section className="rounded-3xl border border-line bg-paper-soft/70 p-4">
-          <p className="mb-3 text-sm font-black text-ink">{t('profile')}</p>
-          <label className="text-xs font-bold uppercase tracking-[0.18em] text-muted">
+        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+          <p className="mb-3 text-sm font-black text-white">{t('profile')}</p>
+          <label className="text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
             {t('nameLabel')}
             <input
-              className="mt-2 h-11 w-full rounded-2xl border border-line bg-paper px-3 text-sm normal-case tracking-normal text-ink outline-none focus:border-[var(--accent)]"
+              className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
               value={preferences.displayName}
               onChange={(event) => void updatePreferences({ displayName: event.target.value })}
             />
           </label>
-          <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-muted">
+          <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
             {t('languageLabel')}
             <select
-              className="mt-2 h-11 w-full rounded-2xl border border-line bg-paper px-3 text-sm normal-case tracking-normal text-ink outline-none focus:border-[var(--accent)]"
+              className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
               value={preferences.locale}
               onChange={(event) => void updatePreferences({ locale: event.target.value as Locale })}
             >
@@ -61,8 +61,8 @@ export function SettingsPanel() {
           </label>
         </section>
 
-        <section className="rounded-3xl border border-line bg-paper-soft/70 p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-ink">
+        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Palette size={17} />
             {t('accentLabel')}
           </div>
@@ -82,13 +82,13 @@ export function SettingsPanel() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-line bg-paper-soft/70 p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-ink">
+        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Type size={17} />
             {t('fontLabel')}
           </div>
           <select
-            className="h-11 w-full rounded-2xl border border-line bg-paper px-3 text-sm text-ink outline-none focus:border-[var(--accent)]"
+            className="h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm text-white outline-none focus:border-[var(--accent)]"
             value={preferences.fontFamily}
             onChange={(event) => void updatePreferences({ fontFamily: event.target.value as FontFamily })}
           >
@@ -100,8 +100,8 @@ export function SettingsPanel() {
           </select>
         </section>
 
-        <section className="rounded-3xl border border-line bg-paper-soft/70 p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-black text-ink">
+        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Volume2 size={17} />
             {t('sounds')}
           </div>
@@ -117,8 +117,8 @@ export function SettingsPanel() {
           </Button>
         </section>
 
-        <section className="rounded-3xl border border-line bg-cream/70 p-4 text-sm leading-7 text-muted">
-          <p className="font-black text-ink">{t('storage')}</p>
+        <section className="rounded-3xl border border-white/10 bg-[#0d1d17] p-4 text-sm leading-7 text-[#8fa89b]">
+          <p className="font-black text-white">{t('storage')}</p>
           <p>{storageMode === 'opfs' ? t('storageOpfs') : t('storageIndexedDb')}</p>
         </section>
       </div>

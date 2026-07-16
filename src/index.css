@@ -152,6 +152,35 @@ button:disabled {
   padding: 0.5rem 0.65rem;
 }
 
+.notes-dark .editor-prose {
+  color: #e8efe5;
+}
+
+.notes-dark .editor-prose h1,
+.notes-dark .editor-prose h2,
+.notes-dark .editor-prose h3 {
+  color: #ffffff;
+}
+
+.notes-dark .editor-prose code {
+  background: rgb(255 255 255 / 0.08);
+  color: #ffffff;
+}
+
+.notes-dark .editor-prose pre {
+  border-color: rgb(255 255 255 / 0.12);
+  background: #08120e;
+}
+
+.notes-dark .editor-prose blockquote {
+  background: var(--accent-soft);
+}
+
+.notes-dark .editor-prose th,
+.notes-dark .editor-prose td {
+  border-color: rgb(255 255 255 / 0.12);
+}
+
 .excalidraw-wrapper .excalidraw {
   --color-primary: var(--accent);
   --color-primary-darker: var(--accent-strong);
