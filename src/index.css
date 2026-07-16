@@ -1,111 +1,157 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-cream: var(--cream);
+  --color-cream-strong: var(--cream-strong);
+  --color-paper: var(--paper);
+  --color-paper-soft: var(--paper-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-editor);
+  --shadow-soft: 0 24px 80px rgb(103 75 45 / 0.16);
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  --cream: #fff8ec;
+  --cream-strong: #f5dfbf;
+  --paper: #fffdf7;
+  --paper-soft: #fff3df;
+  --ink: #2f261f;
+  --muted: #7c6b5d;
+  --line: #ead8bd;
+  --accent: #c7774a;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-strong: color-mix(in srgb, var(--accent) 82%, #402217 18%);
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-editor: Georgia, "Times New Roman", serif;
+  color: var(--ink);
+  background: var(--cream);
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+body[data-font='serif'] {
+  --font-ui: Georgia, "Times New Roman", serif;
+  --font-editor: Georgia, "Times New Roman", serif;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+body[data-font='mono'] {
+  --font-ui: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-editor: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+body[data-font='rounded'] {
+  --font-ui: "Nunito", "Avenir Next Rounded Std", ui-rounded, system-ui, sans-serif;
+  --font-editor: "Nunito", "Avenir Next Rounded Std", ui-rounded, system-ui, sans-serif;
+}
+
+* {
   box-sizing: border-box;
+}
+
+html {
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28rem), var(--cream);
 }
 
 body {
   margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+button {
+  cursor: pointer;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+button:disabled {
+  cursor: not-allowed;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::selection {
+  background: var(--accent-soft);
+}
+
+.editor-prose {
+  color: var(--ink);
+}
+
+.editor-prose h1,
+.editor-prose h2,
+.editor-prose h3 {
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.15;
+  margin-block: 1.1em 0.45em;
+}
+
+.editor-prose h1 {
+  font-size: 2rem;
+}
+
+.editor-prose h2 {
+  font-size: 1.55rem;
+}
+
+.editor-prose p,
+.editor-prose li {
+  line-height: 1.75;
+}
+
+.editor-prose a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.editor-prose code {
+  border-radius: 0.45rem;
+  background: var(--paper-soft);
+  padding: 0.14rem 0.35rem;
+}
+
+.editor-prose pre {
+  overflow: auto;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: #2f261f;
+  color: #fff8ec;
+  padding: 1rem;
+}
+
+.editor-prose blockquote {
+  margin-inline: 0;
+  border-left: 4px solid var(--accent);
+  border-radius: 0.75rem;
+  background: var(--accent-soft);
+  padding: 0.85rem 1rem;
+}
+
+.editor-prose table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editor-prose th,
+.editor-prose td {
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.65rem;
+}
+
+.excalidraw-wrapper .excalidraw {
+  --color-primary: var(--accent);
+  --color-primary-darker: var(--accent-strong);
+  --color-primary-light: var(--accent-soft);
+  border-radius: 1.5rem;
 }

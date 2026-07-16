@@ -1,0 +1,405 @@
+import { create } from 'zustand'
+import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
+import type { Folder, FolderId } from '@/domain/folders/folder'
+import { createEmptyDrawing, type DrawingDocument, type Note, type NoteId } from '@/domain/notes/note'
+import {
+  createUserPreferences,
+  updateUserPreferences,
+  type FontFamily,
+  type Locale,
+  type UserPreferences,
+} from '@/domain/preferences/preferences'
+import type { ISODate } from '@/domain/shared/valueObjects'
+import { workspaceService } from '@/application/workspace/workspaceService'
+import { zustandIndexedDbStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
+
+export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
+export type BootStatus = 'idle' | 'loading' | 'ready' | 'error'
+export type ContentStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error'
+
+type OnboardingInput = {
+  displayName: string
+  accentColor: string
+  fontFamily: FontFamily
+  locale: Locale
+}
+
+type WorkspaceState = {
+  uiHydrated: boolean
+  bootStatus: BootStatus
+  contentStatus: ContentStatus
+  storageMode: string
+  preferences: UserPreferences | null
+  folders: Folder[]
+  notes: Note[]
+  activeFolderId: FolderId | null
+  activeNoteId: NoteId | null
+  markdownDraft: string
+  drawingDraft: DrawingDocument
+  editorMode: EditorMode
+  search: string
+  isDirty: boolean
+  settingsOpen: boolean
+  lastSavedAt: ISODate | null
+  errorMessage: string | null
+}
+
+type WorkspaceActions = {
+  markUiHydrated(): void
+  bootstrap(): Promise<void>
+  completeOnboarding(input: OnboardingInput): Promise<void>
+  selectFolder(folderId: FolderId | null): void
+  selectNote(noteId: NoteId): Promise<void>
+  createFolder(name: string, parentId: FolderId | null): Promise<void>
+  createNote(title: string, folderId: FolderId | null): Promise<void>
+  renameActiveNote(title: string): Promise<void>
+  moveActiveNote(folderId: FolderId | null): Promise<void>
+  deleteNote(noteId: NoteId): Promise<void>
+  deleteFolder(folderId: FolderId): Promise<void>
+  updateMarkdownDraft(markdown: string): void
+  updateDrawingDraft(drawing: DrawingDocument): void
+  saveActiveNote(): Promise<void>
+  setEditorMode(mode: EditorMode): void
+  setSearch(search: string): void
+  setSettingsOpen(open: boolean): void
+  updatePreferences(patch: Partial<Omit<UserPreferences, 'onboardedAt' | 'updatedAt' | 'accentColor'> & { accentColor: string }>): Promise<void>
+}
+
+export type WorkspaceStore = WorkspaceState & WorkspaceActions
+
+const initialWorkspaceState: WorkspaceState = {
+  uiHydrated: false,
+  bootStatus: 'idle',
+  contentStatus: 'idle',
+  storageMode: workspaceService.storageMode,
+  preferences: null,
+  folders: [],
+  notes: [],
+  activeFolderId: null,
+  activeNoteId: null,
+  markdownDraft: '',
+  drawingDraft: createEmptyDrawing(),
+  editorMode: 'split',
+  search: '',
+  isDirty: false,
+  settingsOpen: false,
+  lastSavedAt: null,
+  errorMessage: null,
+}
+
+export const useWorkspaceStore = create<WorkspaceStore>()(
+  subscribeWithSelector(
+    persist(
+      (set, get) => ({
+        ...initialWorkspaceState,
+        markUiHydrated() {
+          set({ uiHydrated: true })
+        },
+        async bootstrap() {
+          if (get().bootStatus === 'loading') {
+            return
+          }
+
+          set({ bootStatus: 'loading', errorMessage: null })
+
+          try {
+            const snapshot = await workspaceService.loadSnapshot()
+            const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
+            const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
+            const activeFolderId = resolveActiveFolderId(snapshot.folders, activeNote, get().activeFolderId)
+
+            set({
+              preferences: snapshot.preferences,
+              folders: snapshot.folders,
+              notes: snapshot.notes,
+              storageMode: workspaceService.storageMode,
+              activeFolderId,
+              activeNoteId: activeNote?.id ?? null,
+              markdownDraft: content?.markdown ?? '',
+              drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              isDirty: false,
+              bootStatus: 'ready',
+              contentStatus: activeNote ? 'ready' : 'idle',
+              lastSavedAt: activeNote?.updatedAt ?? null,
+            })
+          } catch (error) {
+            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: getErrorMessage(error) })
+          }
+        },
+        async completeOnboarding(input) {
+          set({ bootStatus: 'loading', errorMessage: null })
+
+          try {
+            const preferences = createUserPreferences({ ...input, soundEnabled: true })
+            const snapshot = await workspaceService.completeOnboarding(preferences)
+            const activeNote = pickActiveNote(snapshot.notes, null)
+            const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
+
+            set({
+              preferences: snapshot.preferences,
+              folders: snapshot.folders,
+              notes: snapshot.notes,
+              activeFolderId: activeNote?.folderId ?? null,
+              activeNoteId: activeNote?.id ?? null,
+              markdownDraft: content?.markdown ?? '',
+              drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              isDirty: false,
+              bootStatus: 'ready',
+              contentStatus: activeNote ? 'ready' : 'idle',
+              lastSavedAt: activeNote?.updatedAt ?? null,
+            })
+          } catch (error) {
+            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: getErrorMessage(error) })
+          }
+        },
+        selectFolder(folderId) {
+          set({ activeFolderId: folderId })
+        },
+        async selectNote(noteId) {
+          const note = get().notes.find((candidate) => candidate.id === noteId)
+
+          if (!note) {
+            return
+          }
+
+          if (get().isDirty) {
+            await get().saveActiveNote()
+          }
+
+          set({ activeNoteId: noteId, activeFolderId: note.folderId, contentStatus: 'loading', errorMessage: null })
+
+          try {
+            const content = await workspaceService.loadNoteContent(note)
+
+            if (get().activeNoteId !== noteId) {
+              return
+            }
+
+            set({
+              markdownDraft: content.markdown,
+              drawingDraft: content.drawing,
+              isDirty: false,
+              contentStatus: 'ready',
+              lastSavedAt: note.updatedAt,
+            })
+          } catch (error) {
+            set({ contentStatus: 'error', errorMessage: getErrorMessage(error) })
+          }
+        },
+        async createFolder(name, parentId) {
+          try {
+            const folder = await workspaceService.createFolder(name, parentId)
+
+            set((state) => ({
+              folders: [...state.folders, folder].sort((first, second) => first.name.localeCompare(second.name)),
+              activeFolderId: folder.id,
+            }))
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        async createNote(title, folderId) {
+          if (get().isDirty) {
+            await get().saveActiveNote()
+          }
+
+          try {
+            const note = await workspaceService.createNote(title, folderId)
+
+            set((state) => ({
+              notes: [note, ...state.notes],
+              activeNoteId: note.id,
+              activeFolderId: folderId,
+              markdownDraft: '',
+              drawingDraft: createEmptyDrawing(),
+              isDirty: false,
+              contentStatus: 'ready',
+              lastSavedAt: note.updatedAt,
+            }))
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        async renameActiveNote(title) {
+          const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
+
+          if (!activeNote || activeNote.title === title.trim()) {
+            return
+          }
+
+          try {
+            const renamedNote = await workspaceService.renameNote(activeNote, title)
+
+            set((state) => ({
+              notes: state.notes.map((note) => (note.id === renamedNote.id ? renamedNote : note)),
+              lastSavedAt: renamedNote.updatedAt,
+            }))
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        async moveActiveNote(folderId) {
+          const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
+
+          if (!activeNote || activeNote.folderId === folderId) {
+            return
+          }
+
+          try {
+            const movedNote = await workspaceService.moveNote(activeNote, folderId)
+
+            set((state) => ({
+              notes: state.notes.map((note) => (note.id === movedNote.id ? movedNote : note)),
+              activeFolderId: folderId,
+              lastSavedAt: movedNote.updatedAt,
+            }))
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        async deleteNote(noteId) {
+          const note = get().notes.find((candidate) => candidate.id === noteId)
+
+          if (!note) {
+            return
+          }
+
+          try {
+            await workspaceService.deleteNote(note)
+
+            const nextNotes = get().notes.filter((candidate) => candidate.id !== noteId)
+            const nextActiveNote = get().activeNoteId === noteId ? nextNotes[0] : null
+
+            set({ notes: nextNotes, isDirty: false })
+
+            if (nextActiveNote) {
+              await get().selectNote(nextActiveNote.id)
+            } else if (get().activeNoteId === noteId) {
+              set({
+                activeNoteId: null,
+                markdownDraft: '',
+                drawingDraft: createEmptyDrawing(),
+                contentStatus: 'idle',
+                lastSavedAt: null,
+              })
+            }
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        async deleteFolder(folderId) {
+          try {
+            const deleted = await workspaceService.deleteFolder(folderId, get().folders, get().notes)
+            const notes = get().notes.filter((note) => !deleted.deletedNoteIds.includes(note.id))
+            const activeNoteStillExists = get().activeNoteId !== null && notes.some((note) => note.id === get().activeNoteId)
+
+            set({
+              folders: get().folders.filter((folder) => !deleted.deletedFolderIds.includes(folder.id)),
+              notes,
+              activeFolderId: deleted.deletedFolderIds.includes(get().activeFolderId as FolderId) ? null : get().activeFolderId,
+              isDirty: activeNoteStillExists ? get().isDirty : false,
+            })
+
+            if (!activeNoteStillExists) {
+              const nextNote = notes[0]
+
+              if (nextNote) {
+                await get().selectNote(nextNote.id)
+              } else {
+                set({ activeNoteId: null, markdownDraft: '', drawingDraft: createEmptyDrawing(), contentStatus: 'idle' })
+              }
+            }
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+        updateMarkdownDraft(markdown) {
+          set({ markdownDraft: markdown, isDirty: true })
+        },
+        updateDrawingDraft(drawing) {
+          set({ drawingDraft: drawing, isDirty: true })
+        },
+        async saveActiveNote() {
+          const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
+
+          if (!activeNote || !get().isDirty) {
+            return
+          }
+
+          set({ contentStatus: 'saving', errorMessage: null })
+
+          try {
+            const savedNote = await workspaceService.saveNoteContent(activeNote, {
+              markdown: get().markdownDraft,
+              drawing: get().drawingDraft,
+            })
+
+            set((state) => ({
+              notes: state.notes.map((note) => (note.id === savedNote.id ? savedNote : note)),
+              contentStatus: 'ready',
+              isDirty: false,
+              lastSavedAt: savedNote.updatedAt,
+            }))
+          } catch (error) {
+            set({ contentStatus: 'error', errorMessage: getErrorMessage(error) })
+          }
+        },
+        setEditorMode(mode) {
+          set({ editorMode: mode })
+        },
+        setSearch(search) {
+          set({ search })
+        },
+        setSettingsOpen(open) {
+          set({ settingsOpen: open })
+        },
+        async updatePreferences(patch) {
+          const preferences = get().preferences
+
+          if (!preferences) {
+            return
+          }
+
+          try {
+            const updatedPreferences = updateUserPreferences(preferences, patch)
+
+            set({ preferences: updatedPreferences })
+            await workspaceService.savePreferences(updatedPreferences)
+          } catch (error) {
+            set({ errorMessage: getErrorMessage(error) })
+          }
+        },
+      }),
+      {
+        name: 'notas-crema-ui-v1',
+        storage: createJSONStorage(() => zustandIndexedDbStorage),
+        partialize: (state) => ({
+          activeFolderId: state.activeFolderId,
+          activeNoteId: state.activeNoteId,
+          editorMode: state.editorMode,
+          search: state.search,
+          settingsOpen: state.settingsOpen,
+        }),
+        onRehydrateStorage: () => (state) => {
+          state?.markUiHydrated()
+        },
+      },
+    ),
+  ),
+)
+
+function pickActiveNote(notes: Note[], activeNoteId: NoteId | null): Note | null {
+  return notes.find((note) => note.id === activeNoteId) ?? notes[0] ?? null
+}
+
+function resolveActiveFolderId(folders: Folder[], activeNote: Note | null, currentFolderId: FolderId | null): FolderId | null {
+  if (currentFolderId && folders.some((folder) => folder.id === currentFolderId)) {
+    return currentFolderId
+  }
+
+  return activeNote?.folderId ?? null
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Ocurrio un error inesperado'
+}
