@@ -14,7 +14,7 @@ export function AppShell() {
         <Sidebar />
         <EditorWorkspace />
         {settingsOpen ? (
-          <div className="animate-fade-up fixed inset-3 z-30 lg:absolute lg:inset-y-5 lg:left-auto lg:right-5 lg:w-[22rem]">
+          <div className="animate-fade-up fixed inset-3 z-30 lg:absolute lg:inset-y-5 lg:left-auto lg:right-5 lg:w-[30rem]">
             <SettingsPanel />
           </div>
         ) : null}

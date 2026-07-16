@@ -20,6 +20,7 @@ self.addEventListener('message', (event: MessageEvent<{ type: 'start' | 'sync-no
 })
 
 function startSyncLoop(): void {
+  console.log("Strat Sync Loop")
   if (intervalId !== null) {
     return
   }
@@ -31,6 +32,7 @@ function startSyncLoop(): void {
 }
 
 function stopSyncLoop(): void {
+  console.log("Stop Sync Loop")
   if (intervalId !== null) {
     self.clearInterval(intervalId)
     intervalId = null
@@ -38,6 +40,7 @@ function stopSyncLoop(): void {
 }
 
 async function syncNow(): Promise<void> {
+  console.log("Sync Now")
   if (syncing) {
     return
   }
