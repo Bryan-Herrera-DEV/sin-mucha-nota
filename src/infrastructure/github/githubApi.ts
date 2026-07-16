@@ -1,5 +1,6 @@
 const GITHUB_API_URL = 'https://api.github.com'
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth'
+const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
 
 export type GithubDeviceCodeResponse = {
   device_code: string
@@ -86,7 +87,7 @@ export type GithubTreeUpdateEntry = {
 }
 
 export async function requestGithubDeviceCode(clientId: string): Promise<GithubDeviceCodeResponse> {
-  return fetchGithubOAuth<GithubDeviceCodeResponse>('device/code', {
+  return fetchGithubDeviceCode<GithubDeviceCodeResponse>({
     client_id: clientId,
     scope: 'repo read:user',
   })
@@ -180,6 +181,24 @@ export function decodeGithubBlobContent(blob: GithubBlobResponse): string {
 
 async function fetchGithubOAuth<T>(path: string, body: Record<string, string>): Promise<T> {
   const response = await fetch(`${GITHUB_OAUTH_URL}/${path}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams(body),
+  })
+  const payload = (await response.json()) as T & { error?: string; error_description?: string }
+
+  if (!response.ok || payload.error) {
+    throw new Error(payload.error ?? payload.error_description ?? 'GitHub OAuth no respondio correctamente')
+  }
+
+  return payload
+}
+
+async function fetchGithubDeviceCode<T>(body: Record<string, string>): Promise<T> {
+  const response = await fetch(GITHUB_DEVICE_CODE_URL, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
