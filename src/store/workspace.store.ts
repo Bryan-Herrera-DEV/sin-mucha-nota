@@ -25,7 +25,6 @@ type OnboardingInput = {
 }
 
 type WorkspaceState = {
-  uiHydrated: boolean
   bootStatus: BootStatus
   contentStatus: ContentStatus
   storageMode: string
@@ -45,7 +44,6 @@ type WorkspaceState = {
 }
 
 type WorkspaceActions = {
-  markUiHydrated(): void
   bootstrap(): Promise<void>
   completeOnboarding(input: OnboardingInput): Promise<void>
   selectFolder(folderId: FolderId | null): void
@@ -68,7 +66,6 @@ type WorkspaceActions = {
 export type WorkspaceStore = WorkspaceState & WorkspaceActions
 
 const initialWorkspaceState: WorkspaceState = {
-  uiHydrated: false,
   bootStatus: 'idle',
   contentStatus: 'idle',
   storageMode: workspaceService.storageMode,
@@ -92,9 +89,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     persist(
       (set, get) => ({
         ...initialWorkspaceState,
-        markUiHydrated() {
-          set({ uiHydrated: true })
-        },
         async bootstrap() {
           if (get().bootStatus === 'loading') {
             return
@@ -317,6 +311,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           set({ markdownDraft: markdown, isDirty: true })
         },
         updateDrawingDraft(drawing) {
+          if (areDrawingsEqual(get().drawingDraft, drawing)) {
+            return
+          }
+
           set({ drawingDraft: drawing, isDirty: true })
         },
         async saveActiveNote() {
@@ -380,13 +378,26 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           search: state.search,
           settingsOpen: state.settingsOpen,
         }),
-        onRehydrateStorage: () => (state) => {
-          state?.markUiHydrated()
-        },
       },
     ),
   ),
 )
+
+function areDrawingsEqual(first: DrawingDocument, second: DrawingDocument): boolean {
+  if (first === second) {
+    return true
+  }
+
+  return createDrawingSignature(first) === createDrawingSignature(second)
+}
+
+function createDrawingSignature(drawing: DrawingDocument): string {
+  try {
+    return JSON.stringify(drawing)
+  } catch {
+    return `${drawing.elements.length}:${Object.keys(drawing.files).length}:${Object.keys(drawing.appState).join(',')}`
+  }
+}
 
 function pickActiveNote(notes: Note[], activeNoteId: NoteId | null): Note | null {
   return notes.find((note) => note.id === activeNoteId) ?? notes[0] ?? null

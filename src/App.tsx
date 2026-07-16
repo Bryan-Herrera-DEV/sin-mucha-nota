@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AppShell } from '@/features/shell/AppShell'
 import { OnboardingPage } from '@/features/onboarding/OnboardingPage'
 import { useThemeBridge } from '@/shared/hooks/useThemeBridge'
@@ -8,12 +8,22 @@ import { selectHasOnboarding } from '@/store/selectors'
 import { useWorkspaceStore } from '@/store/workspace.store'
 
 function App() {
-  const uiHydrated = useWorkspaceStore((state) => state.uiHydrated)
+  const [uiHydrated, setUiHydrated] = useState(() => useWorkspaceStore.persist.hasHydrated())
   const bootStatus = useWorkspaceStore((state) => state.bootStatus)
   const errorMessage = useWorkspaceStore((state) => state.errorMessage)
   const hasOnboarding = useWorkspaceStore(selectHasOnboarding)
   const bootstrap = useWorkspaceStore((state) => state.bootstrap)
   useThemeBridge()
+
+  useEffect(() => {
+    const unsubscribe = useWorkspaceStore.persist.onFinishHydration(() => setUiHydrated(true))
+
+    if (useWorkspaceStore.persist.hasHydrated()) {
+      setUiHydrated(true)
+    }
+
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     if (uiHydrated && bootStatus === 'idle') {
