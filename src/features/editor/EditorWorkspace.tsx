@@ -2,10 +2,11 @@ import { useDeferredValue, useEffect, useState } from 'react'
 import { CalendarDays, FileText, Plus, Save, Trash2 } from 'lucide-react'
 import type { Folder as FolderEntity, FolderId } from '@/domain/folders/folder'
 import type { Note } from '@/domain/notes/note'
-import type { EditorMode } from '@/store/workspace.store'
-import { selectActiveNote } from '@/store/selectors'
-import { useWorkspaceStore } from '@/store/workspace.store'
-import { useI18n } from '@/i18n/useI18n'
+import { getVisibleNotes } from '@/application/workspace/noteFilters'
+import type { EditorMode } from '@/app/state/workspace.store'
+import { selectActiveNote } from '@/app/state/selectors'
+import { useWorkspaceStore } from '@/app/state/workspace.store'
+import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
 import { Select } from '@/shared/ui/Select'
@@ -33,17 +34,21 @@ export function EditorWorkspace() {
   const updateDrawingDraft = useWorkspaceStore((state) => state.updateDrawingDraft)
   const saveActiveNote = useWorkspaceStore((state) => state.saveActiveNote)
   const setEditorMode = useWorkspaceStore((state) => state.setEditorMode)
+  const selectFolder = useWorkspaceStore((state) => state.selectFolder)
   const renameActiveNote = useWorkspaceStore((state) => state.renameActiveNote)
   const moveActiveNote = useWorkspaceStore((state) => state.moveActiveNote)
   const selectNote = useWorkspaceStore((state) => state.selectNote)
   const createNote = useWorkspaceStore((state) => state.createNote)
   const deleteNote = useWorkspaceStore((state) => state.deleteNote)
+  const setSearch = useWorkspaceStore((state) => state.setSearch)
   const [titleDraft, setTitleDraft] = useState(activeNote?.title ?? '')
   const [newNoteTitle, setNewNoteTitle] = useState('')
   const deferredMarkdown = useDeferredValue(markdownDraft)
   const play = useSoundFeedback()
   const visibleNotes = getVisibleNotes(notes, folders, activeFolderId, search)
   const activeContentReady = activeNote !== null && loadedContentNoteId === activeNote.id && contentStatus !== 'loading'
+  const activeFolder = activeFolderId ? (folders.find((folder) => folder.id === activeFolderId) ?? null) : null
+  const viewTitle = activeFolder?.name ?? t('allNotes')
   const today = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date())
 
   useEffect(() => {
@@ -63,19 +68,19 @@ export function EditorWorkspace() {
   }, [contentStatus, isDirty, saveActiveNote])
 
   return (
-    <main className="notes-dark flex min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_55%_0%,rgb(60_91_73_/_0.32),transparent_28rem),#0a1813] text-[#e8efe5]">
+    <main className="notes-dark app-workspace flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 lg:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="flex items-center gap-2 text-xs font-bold text-[#8fa89b]">
+            <p className="flex items-center gap-2 text-xs font-bold text-[var(--app-muted)]">
               <CalendarDays size={15} />
-              Daily notes
+              {today}
             </p>
-            <h1 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">Today, {today}</h1>
+            <h1 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">{viewTitle}</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-[#8fa89b]">
-            <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">{visibleNotes.length} notes</span>
-            <span className={cn('rounded-full border px-3 py-2', isDirty ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-white/10 text-[#8fa89b]')}>
+          <div className="flex items-center gap-2 text-xs font-bold text-[var(--app-muted)]">
+            <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">{visibleNotes.length} {t('notes').toLowerCase()}</span>
+            <span className={cn('rounded-full border px-3 py-2', isDirty ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-white/10 text-[var(--app-muted)]')}>
               {isDirty ? t('unsaved') : t('saved')}
             </span>
           </div>
@@ -96,8 +101,8 @@ export function EditorWorkspace() {
           }}
         >
           <input
-            className="h-11 w-full rounded-2xl border border-white/12 bg-[#14251f]/85 px-4 pr-12 text-sm text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.06)] outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-            placeholder="Star writing right here..."
+            className="h-11 w-full rounded-2xl border border-white/12 bg-[var(--app-panel)] px-4 pr-12 text-sm text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.06)] outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+            placeholder={t('noteNamePlaceholder')}
             value={newNoteTitle}
             onChange={(event) => setNewNoteTitle(event.target.value)}
           />
@@ -110,9 +115,11 @@ export function EditorWorkspace() {
       <section className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] lg:p-5 lg:px-7">
         <div className="min-h-0 overflow-auto pr-1">
           <div className="space-y-3">
-            {visibleNotes.map((note) => (
+            {visibleNotes.length > 0 ? visibleNotes.map((note) => (
               <NoteCard
                 active={activeNote?.id === note.id}
+                deleteLabel={t('delete')}
+                fallbackFolderLabel={t('rootFolder')}
                 folder={folders.find((candidate) => candidate.id === note.folderId) ?? null}
                 key={note.id}
                 markdownPreview={activeNote?.id === note.id ? markdownDraft : ''}
@@ -126,11 +133,28 @@ export function EditorWorkspace() {
                   void selectNote(note.id)
                 }}
               />
-            ))}
+            )) : (
+              <div className="app-panel-soft rounded-[1.1rem] border border-dashed border-white/15 p-5 text-sm leading-6 text-[var(--app-muted)]">
+                <p className="font-black text-white">{t('emptyNotesTitle')}</p>
+                <p className="mt-2">{t('emptyNotesBody')}</p>
+                {(activeFolderId !== null || search.trim()) ? (
+                  <button
+                    className="mt-4 rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-xs font-black text-[var(--accent)]"
+                    onClick={() => {
+                      selectFolder(null)
+                      setSearch('')
+                    }}
+                    type="button"
+                  >
+                    {t('clearFilters')}
+                  </button>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
 
-        <article className="min-h-0 overflow-hidden rounded-[1.35rem] border border-white/12 bg-[#14251f]/85 shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
+        <article className="min-h-0 overflow-hidden rounded-[1.35rem] border border-white/12 bg-[var(--app-panel)] shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
           {activeNote ? (
             <div className="flex h-full min-h-0 flex-col">
               <header className="border-b border-white/10 p-4">
@@ -142,7 +166,7 @@ export function EditorWorkspace() {
                       onBlur={() => void renameActiveNote(titleDraft)}
                       onChange={(event) => setTitleDraft(event.target.value)}
                     />
-                    <p className="mt-2 text-xs font-semibold text-[#8fa89b]">
+                    <p className="mt-2 text-xs font-semibold text-[var(--app-muted)]">
                       {lastSavedAt ? new Date(lastSavedAt).toLocaleString() : t('saved')}
                     </p>
                   </div>
@@ -177,7 +201,7 @@ export function EditorWorkspace() {
                     <button
                       className={cn(
                         'rounded-full border px-2.5 py-1 text-xs font-black transition',
-                        editorMode === mode ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : 'border-white/10 bg-white/6 text-[#8fa89b] hover:text-white',
+                        editorMode === mode ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : 'border-white/10 bg-white/6 text-[var(--app-muted)] hover:text-white',
                       )}
                       key={mode}
                       onClick={() => {
@@ -203,7 +227,7 @@ export function EditorWorkspace() {
                   >
                     {(editorMode === 'split' || editorMode === 'markdown') && (
                       <textarea
-                        className="min-h-[22rem] resize-none rounded-[1.1rem] border border-white/12 bg-[#0d1d17] p-4 font-serif text-sm leading-7 text-[#e8efe5] outline-none transition placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+                        className="markdown-editor min-h-[22rem] resize-none rounded-[1.1rem] border border-white/12 bg-[var(--app-panel-strong)] p-4 text-sm leading-7 text-[var(--app-text)] outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
                         placeholder={t('editorPlaceholder')}
                         value={markdownDraft}
                         onChange={(event) => updateMarkdownDraft(event.target.value)}
@@ -215,7 +239,7 @@ export function EditorWorkspace() {
                     {(editorMode === 'split' || editorMode === 'drawing') && <ExcalidrawPanel drawing={drawingDraft} noteId={activeNote.id} onChange={updateDrawingDraft} />}
                   </section>
                 ) : (
-                  <div className="grid min-h-[22rem] place-items-center rounded-[1.1rem] border border-white/12 bg-[#0d1d17] text-sm font-bold text-[#8fa89b]">
+                  <div className="grid min-h-[22rem] place-items-center rounded-[1.1rem] border border-white/12 bg-[var(--app-panel-strong)] text-sm font-bold text-[var(--app-muted)]">
                     {t('loading')}
                   </div>
                 )}
@@ -226,7 +250,7 @@ export function EditorWorkspace() {
               <div className="max-w-md">
                 <FileText className="mx-auto text-[var(--accent)]" size={34} />
                 <h2 className="mt-4 text-2xl font-black tracking-[-0.05em] text-white">{t('noNoteTitle')}</h2>
-                <p className="mt-3 leading-7 text-[#8fa89b]">{t('noNoteBody')}</p>
+                <p className="mt-3 leading-7 text-[var(--app-muted)]">{t('noNoteBody')}</p>
               </div>
             </div>
           )}
@@ -239,52 +263,36 @@ export function EditorWorkspace() {
 type NoteCardProps = {
   note: Note
   folder: FolderEntity | null
+  deleteLabel: string
+  fallbackFolderLabel: string
   active: boolean
   markdownPreview: string
   onSelect(): void
   onDelete(): void
 }
 
-function NoteCard({ note, folder, active, markdownPreview, onSelect, onDelete }: NoteCardProps) {
+function NoteCard({ note, folder, deleteLabel, fallbackFolderLabel, active, markdownPreview, onSelect, onDelete }: NoteCardProps) {
   const excerpt = markdownPreview.trim().replace(/[#*_>`-]/g, '').replace(/\s+/g, ' ').slice(0, 150)
 
   return (
-    <article className={cn('group rounded-[1.1rem] border p-3 transition', active ? 'border-[var(--accent)] bg-[#20362d]' : 'border-white/10 bg-[#14251f]/75 hover:border-white/20 hover:bg-[#1a2c25]')}>
+    <article className={cn('note-card group rounded-[1.1rem] border p-3 transition', active ? 'note-card-active border-[var(--accent)]' : 'border-white/10 hover:border-white/20')}>
       <button className="w-full text-left" onClick={onSelect} type="button">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-black text-white">{note.title}</h3>
-            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-[#8fa89b]">
+            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-[var(--app-muted)]">
               <span className="h-2 w-2 rounded-sm border border-[var(--accent)]" />
-              {folder?.name ?? 'Personal'}
+              {folder?.name ?? fallbackFolderLabel}
             </p>
           </div>
-          <span className="text-xs font-bold text-[#8fa89b]">{new Date(note.updatedAt).toLocaleDateString()}</span>
+          <span className="text-xs font-bold text-[var(--app-muted)]">{new Date(note.updatedAt).toLocaleDateString()}</span>
         </div>
-        <p className="mt-3 line-clamp-3 text-xs leading-5 text-[#c7d4ca]">{excerpt || 'Markdown + Excalidraw note ready to edit.'}</p>
+        <p className="mt-3 line-clamp-3 text-xs leading-5 text-[var(--app-card-text)]">{excerpt || 'Markdown + Excalidraw note ready to edit.'}</p>
       </button>
       <button className="mt-3 hidden items-center gap-1 text-xs font-bold text-[#ff8b8b] group-hover:flex" onClick={onDelete} type="button">
         <Trash2 size={13} />
-        Delete
+        {deleteLabel}
       </button>
     </article>
   )
-}
-
-function getVisibleNotes(notes: Note[], folders: FolderEntity[], activeFolderId: FolderId | null, search: string): Note[] {
-  const visibleFolderIds = activeFolderId ? [activeFolderId, ...collectDescendantFolderIds(activeFolderId, folders)] : null
-  const normalizedSearch = search.trim().toLowerCase()
-
-  return notes.filter((note) => {
-    const matchesFolder = visibleFolderIds === null || (note.folderId !== null && visibleFolderIds.includes(note.folderId))
-    const matchesSearch = !normalizedSearch || note.title.toLowerCase().includes(normalizedSearch)
-
-    return matchesFolder && matchesSearch
-  })
-}
-
-function collectDescendantFolderIds(folderId: FolderId, folders: FolderEntity[]): FolderId[] {
-  const childFolders = folders.filter((folder) => folder.parentId === folderId)
-
-  return childFolders.flatMap((folder) => [folder.id, ...collectDescendantFolderIds(folder.id, folders)])
 }

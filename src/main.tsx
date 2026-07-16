@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import './app/styles/index.css'
+import App from './app/App'
 
 if (import.meta.env.DEV && import.meta.env.VITE_REACT_SCAN === 'true') {
   const { scan } = await import('react-scan')

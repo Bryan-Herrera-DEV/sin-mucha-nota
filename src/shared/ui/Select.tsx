@@ -27,20 +27,20 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
         aria-label={ariaLabel ?? placeholder}
         className={cn(
           'flex h-9 w-full items-center justify-between gap-2 rounded-xl border px-3 text-sm font-semibold shadow-[inset_0_1px_rgb(255_255_255_/_0.04)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-50',
-          isLight ? 'border-line bg-paper-soft text-ink hover:bg-paper' : 'border-white/10 bg-[#0d1d17] text-white hover:bg-white/8',
+          isLight ? 'border-line bg-paper-soft text-ink hover:bg-paper' : 'border-white/10 bg-[var(--app-panel-strong)] text-white hover:bg-white/8',
           className,
         )}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon asChild>
-          <ChevronDown className="shrink-0 text-[#8fa89b]" size={15} />
+          <ChevronDown className="shrink-0 text-[var(--app-muted)]" size={15} />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           className={cn(
             'z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-xl border shadow-[0_18px_60px_rgb(0_0_0_/_0.38)]',
-            isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[#10231d] text-white',
+            isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[var(--app-sidebar)] text-white',
             contentClassName,
           )}
           position="popper"

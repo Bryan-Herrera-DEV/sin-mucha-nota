@@ -19,11 +19,11 @@ import {
 } from 'lucide-react'
 import { folderIconOptions, type Folder as FolderEntity, type FolderIcon, type FolderId } from '@/domain/folders/folder'
 import type { Note } from '@/domain/notes/note'
-import { useI18n } from '@/i18n/useI18n'
+import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
 import { Select } from '@/shared/ui/Select'
-import { useWorkspaceStore } from '@/store/workspace.store'
+import { useWorkspaceStore } from '@/app/state/workspace.store'
 
 const folderIconMap: Record<FolderIcon, ComponentType<{ size?: number; className?: string }>> = {
   folder: Folder,
@@ -56,7 +56,7 @@ export function Sidebar() {
 
   if (sidebarCollapsed) {
     return (
-      <aside className="flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 bg-[#10231d]/95 px-3 py-2 text-[#e8efe5] shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3">
+      <aside className="app-sidebar flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 px-3 py-2 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3">
         <button
           className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/8 text-white transition hover:bg-white/12"
           onClick={() => setSidebarCollapsed(false)}
@@ -66,12 +66,16 @@ export function Sidebar() {
           <PanelLeftOpen size={15} />
         </button>
         <button
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10 text-white"
+          className={cn(
+            'grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 transition hover:bg-white/12 hover:text-white',
+            activeFolderId === null ? 'bg-white/10 text-white' : 'text-[#d8e5d9]',
+          )}
           onClick={() => {
             selectFolder(null)
+            setSearch('')
             play('open')
           }}
-          title="Daily notes"
+          title={t('allNotes')}
           type="button"
         >
           <FileText size={15} />
@@ -102,7 +106,7 @@ export function Sidebar() {
             })}
         </div>
         <button
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8fa89b] transition hover:bg-white/10 hover:text-white"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--app-muted)] transition hover:bg-white/10 hover:text-white"
           onClick={() => {
             play('open')
             setSettingsOpen(true)
@@ -117,13 +121,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex min-h-0 flex-col border-b border-white/10 bg-[#10231d]/95 px-3 py-3 text-[#e8efe5] shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r">
+    <aside className="app-sidebar flex min-h-0 flex-col border-b border-white/10 px-3 py-3 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r">
       <div className="mb-4 flex items-center gap-2">
         <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
         <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
         <span className="h-3 w-3 rounded-full bg-[#28c840]" />
         <button
-          className="ml-auto grid h-8 w-8 place-items-center rounded-full text-[#8fa89b] transition hover:bg-white/10 hover:text-white"
+          className="ml-auto grid h-8 w-8 place-items-center rounded-full text-[var(--app-muted)] transition hover:bg-white/10 hover:text-white"
           onClick={() => setSidebarCollapsed(true)}
           title="Colapsar menu"
           type="button"
@@ -134,36 +138,28 @@ export function Sidebar() {
 
       <nav className="space-y-2">
         <button
-          className="flex w-full items-center gap-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-left text-sm font-bold text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.08)]"
+          className={cn(
+            'flex w-full items-center gap-3 rounded-full border px-3 py-2 text-left text-sm font-bold transition',
+            activeFolderId === null
+              ? 'border-white/15 bg-white/10 text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.08)]'
+              : 'border-transparent text-[#d8e5d9] hover:bg-white/8 hover:text-white',
+          )}
           onClick={() => {
             selectFolder(null)
+            setSearch('')
             play('open')
           }}
           type="button"
         >
           <FileText size={16} />
-          Daily notes
-        </button>
-        <button
-          className={cn(
-            'flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-[#d8e5d9] transition hover:bg-white/8',
-            activeFolderId === null && 'text-white',
-          )}
-          onClick={() => {
-            selectFolder(null)
-            play('tap')
-          }}
-          type="button"
-        >
-          <BookOpen size={16} />
           {t('allNotes')}
         </button>
       </nav>
 
       <label className="relative mt-4 block">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8fa89b]">⌕</span>
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]">⌕</span>
         <input
-          className="h-9 w-full rounded-full border border-white/10 bg-black/15 pl-9 pr-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+          className="h-9 w-full rounded-full border border-white/10 bg-black/15 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
           placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(event) => {
@@ -176,7 +172,7 @@ export function Sidebar() {
       <div className="my-4 h-px bg-white/10" />
 
       <section className="min-h-0 flex-1 overflow-auto pr-1">
-        <div className="mb-2 flex items-center justify-between px-1 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[#8fa89b]">
+        <div className="mb-2 flex items-center justify-between px-1 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[var(--app-muted)]">
           <span>{t('folders')}</span>
           <span>{folders.length}</span>
         </div>
@@ -225,7 +221,7 @@ export function Sidebar() {
             value={folderIcon}
           />
           <input
-            className="h-9 rounded-full border border-white/10 bg-[#183027] px-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)]"
+            className="h-9 rounded-full border border-white/10 bg-[var(--app-panel)] px-3 text-sm text-white outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)]"
             placeholder={activeFolderId ? t('newSubfolder') : t('folderNamePlaceholder')}
             value={folderName}
             onChange={(event) => setFolderName(event.target.value)}
@@ -250,9 +246,9 @@ export function Sidebar() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-black text-white">{preferences?.displayName}</span>
-          <span className="block truncate text-xs text-[#8fa89b]">{t('settings')}</span>
+          <span className="block truncate text-xs text-[var(--app-muted)]">{t('settings')}</span>
         </span>
-        <Settings className="text-[#8fa89b]" size={16} />
+        <Settings className="text-[var(--app-muted)]" size={16} />
       </button>
     </aside>
   )
@@ -276,7 +272,7 @@ function FolderNode({ folder, folders, notes, activeFolderId, onSelect, deleteFo
   return (
     <div>
       <div className="group flex items-center gap-1 rounded-2xl py-1">
-        <button className="rounded-full p-1 text-[#8fa89b] hover:bg-white/10" onClick={() => setOpen((value) => !value)} type="button">
+        <button className="rounded-full p-1 text-[var(--app-muted)] hover:bg-white/10" onClick={() => setOpen((value) => !value)} type="button">
           {children.length > 0 ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : <span className="block h-3.5 w-3.5" />}
         </button>
         <button
@@ -289,7 +285,7 @@ function FolderNode({ folder, folders, notes, activeFolderId, onSelect, deleteFo
         >
           <FolderIcon className="shrink-0" size={16} />
           <span className="truncate">{folder.name}</span>
-          <span className="ml-auto text-xs text-[#8fa89b]">{count}</span>
+          <span className="ml-auto text-xs text-[var(--app-muted)]">{count}</span>
         </button>
         <button
           className="hidden rounded-full p-1 text-[#ff8b8b] hover:bg-red-500/10 group-hover:block"

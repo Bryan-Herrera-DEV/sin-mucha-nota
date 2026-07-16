@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
+import { persist, subscribeWithSelector } from 'zustand/middleware'
 import type { Folder, FolderIcon, FolderId } from '@/domain/folders/folder'
 import { createEmptyDrawing, type DrawingDocument, type Note, type NoteId } from '@/domain/notes/note'
 import {
@@ -7,11 +7,13 @@ import {
   updateUserPreferences,
   type FontFamily,
   type Locale,
+  type ThemeId,
   type UserPreferences,
 } from '@/domain/preferences/preferences'
 import type { ISODate } from '@/domain/shared/valueObjects'
+import { getVisibleNotes } from '@/application/workspace/noteFilters'
 import { workspaceService } from '@/application/workspace/workspaceService'
-import { zustandIndexedDbStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
+import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
 export type BootStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -20,6 +22,7 @@ export type ContentStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error'
 type OnboardingInput = {
   displayName: string
   accentColor: string
+  themeId: ThemeId
   fontFamily: FontFamily
   locale: Locale
 }
@@ -68,6 +71,8 @@ type WorkspaceActions = {
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions
 
+type PersistedWorkspaceState = Pick<WorkspaceState, 'activeFolderId' | 'activeNoteId' | 'editorMode' | 'settingsOpen' | 'sidebarCollapsed'>
+
 const initialWorkspaceState: WorkspaceState = {
   bootStatus: 'idle',
   contentStatus: 'idle',
@@ -89,6 +94,8 @@ const initialWorkspaceState: WorkspaceState = {
   errorMessage: null,
 }
 
+const persistedWorkspaceStorage = createZustandIndexedDbJsonStorage<PersistedWorkspaceState>()
+
 export const useWorkspaceStore = create<WorkspaceStore>()(
   subscribeWithSelector(
     persist(
@@ -105,7 +112,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             const snapshot = await workspaceService.loadSnapshot()
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
             const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
-            const activeFolderId = resolveActiveFolderId(snapshot.folders, activeNote, get().activeFolderId)
+            const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
 
             set({
               preferences: snapshot.preferences,
@@ -139,7 +146,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               preferences: snapshot.preferences,
               folders: snapshot.folders,
               notes: snapshot.notes,
-              activeFolderId: activeNote?.folderId ?? null,
+              activeFolderId: null,
               activeNoteId: activeNote?.id ?? null,
               markdownDraft: content?.markdown ?? '',
               drawingDraft: content?.drawing ?? createEmptyDrawing(),
@@ -169,7 +176,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
           set({
             activeNoteId: noteId,
-            activeFolderId: note.folderId,
             markdownDraft: '',
             drawingDraft: createEmptyDrawing(),
             loadedContentNoteId: null,
@@ -262,7 +268,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
             set((state) => ({
               notes: state.notes.map((note) => (note.id === movedNote.id ? movedNote : note)),
-              activeFolderId: folderId,
               lastSavedAt: movedNote.updatedAt,
             }))
           } catch (error) {
@@ -279,8 +284,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           try {
             await workspaceService.deleteNote(note)
 
-            const nextNotes = get().notes.filter((candidate) => candidate.id !== noteId)
-            const nextActiveNote = get().activeNoteId === noteId ? nextNotes[0] : null
+            const state = get()
+            const nextNotes = state.notes.filter((candidate) => candidate.id !== noteId)
+            const nextActiveNote = state.activeNoteId === noteId ? getVisibleNotes(nextNotes, state.folders, state.activeFolderId, state.search)[0] : null
 
             set({ notes: nextNotes, isDirty: false })
 
@@ -314,7 +320,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             })
 
             if (!activeNoteStillExists) {
-              const nextNote = notes[0]
+              const state = get()
+              const nextNote = getVisibleNotes(notes, state.folders, state.activeFolderId, state.search)[0]
 
               if (nextNote) {
                 await get().selectNote(nextNote.id)
@@ -400,12 +407,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       }),
       {
         name: 'notas-crema-ui-v1',
-        storage: createJSONStorage(() => zustandIndexedDbStorage),
+        storage: persistedWorkspaceStorage,
+        version: 2,
+        migrate: (persistedState) => sanitizePersistedWorkspaceState(persistedState),
+        merge: (persistedState, currentState) => ({
+          ...currentState,
+          ...sanitizePersistedWorkspaceState(persistedState),
+          search: '',
+        }),
         partialize: (state) => ({
           activeFolderId: state.activeFolderId,
           activeNoteId: state.activeNoteId,
           editorMode: state.editorMode,
-          search: state.search,
           settingsOpen: state.settingsOpen,
           sidebarCollapsed: state.sidebarCollapsed,
         }),
@@ -434,12 +447,28 @@ function pickActiveNote(notes: Note[], activeNoteId: NoteId | null): Note | null
   return notes.find((note) => note.id === activeNoteId) ?? notes[0] ?? null
 }
 
-function resolveActiveFolderId(folders: Folder[], activeNote: Note | null, currentFolderId: FolderId | null): FolderId | null {
+function resolveActiveFolderId(folders: Folder[], currentFolderId: FolderId | null): FolderId | null {
   if (currentFolderId && folders.some((folder) => folder.id === currentFolderId)) {
     return currentFolderId
   }
 
-  return activeNote?.folderId ?? null
+  return null
+}
+
+function sanitizePersistedWorkspaceState(persistedState: unknown): PersistedWorkspaceState {
+  const state = typeof persistedState === 'object' && persistedState !== null ? (persistedState as Partial<PersistedWorkspaceState>) : {}
+
+  return {
+    activeFolderId: state.activeFolderId ?? null,
+    activeNoteId: state.activeNoteId ?? null,
+    editorMode: isEditorMode(state.editorMode) ? state.editorMode : 'split',
+    settingsOpen: state.settingsOpen ?? false,
+    sidebarCollapsed: state.sidebarCollapsed ?? false,
+  }
+}
+
+function isEditorMode(value: unknown): value is EditorMode {
+  return value === 'split' || value === 'markdown' || value === 'drawing' || value === 'preview'
 }
 
 function getErrorMessage(error: unknown): string {

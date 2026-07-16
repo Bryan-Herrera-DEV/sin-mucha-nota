@@ -6,9 +6,13 @@ export type Locale = (typeof supportedLocales)[number]
 export const fontFamilies = ['system', 'serif', 'mono', 'rounded'] as const
 export type FontFamily = (typeof fontFamilies)[number]
 
+export const themeIds = ['forest', 'midnight', 'ember', 'plum', 'sand'] as const
+export type ThemeId = (typeof themeIds)[number]
+
 export type UserPreferences = {
   displayName: string
   accentColor: HexColor
+  themeId: ThemeId
   fontFamily: FontFamily
   locale: Locale
   soundEnabled: boolean
@@ -24,6 +28,62 @@ export const accentColorOptions = [
   { label: 'Miel', value: '#c4953b' as HexColor },
 ] as const
 
+export const themeOptions = [
+  {
+    value: 'forest',
+    labelEs: 'Bosque',
+    labelEn: 'Forest',
+    descriptionEs: 'Verde profundo y notas nocturnas.',
+    descriptionEn: 'Deep green with night-note depth.',
+    accentColor: '#70a477' as HexColor,
+    preview: ['#263a31', '#09130f'],
+  },
+  {
+    value: 'midnight',
+    labelEs: 'Medianoche',
+    labelEn: 'Midnight',
+    descriptionEs: 'Azules tinta para concentrarte.',
+    descriptionEn: 'Ink blues for focus.',
+    accentColor: '#6ea8fe' as HexColor,
+    preview: ['#1d2b4a', '#07111f'],
+  },
+  {
+    value: 'ember',
+    labelEs: 'Brasa',
+    labelEn: 'Ember',
+    descriptionEs: 'Calido, intenso y editorial.',
+    descriptionEn: 'Warm, intense and editorial.',
+    accentColor: '#e07a5f' as HexColor,
+    preview: ['#4a261f', '#150b08'],
+  },
+  {
+    value: 'plum',
+    labelEs: 'Ciruela',
+    labelEn: 'Plum',
+    descriptionEs: 'Oscuro suave con energia creativa.',
+    descriptionEn: 'Soft dark with creative energy.',
+    accentColor: '#b583d8' as HexColor,
+    preview: ['#3a254a', '#110916'],
+  },
+  {
+    value: 'sand',
+    labelEs: 'Arena',
+    labelEn: 'Sand',
+    descriptionEs: 'Neutro oscuro con brillo crema.',
+    descriptionEn: 'Dark neutral with creamy glow.',
+    accentColor: '#d4a373' as HexColor,
+    preview: ['#3f3427', '#15110c'],
+  },
+] as const satisfies ReadonlyArray<{
+  value: ThemeId
+  labelEs: string
+  labelEn: string
+  descriptionEs: string
+  descriptionEn: string
+  accentColor: HexColor
+  preview: readonly [string, string]
+}>
+
 export const fontOptions = [
   { value: 'system', labelEs: 'Sistema', labelEn: 'System' },
   { value: 'serif', labelEs: 'Editorial', labelEn: 'Editorial' },
@@ -34,6 +94,7 @@ export const fontOptions = [
 export function createUserPreferences(input: {
   displayName: string
   accentColor: string
+  themeId?: ThemeId
   fontFamily: FontFamily
   locale: Locale
   soundEnabled?: boolean
@@ -43,6 +104,7 @@ export function createUserPreferences(input: {
   return {
     displayName: ensureNonEmptyText(input.displayName, 'El nombre', 40),
     accentColor: createHexColor(input.accentColor),
+    themeId: input.themeId ?? 'forest',
     fontFamily: input.fontFamily,
     locale: input.locale,
     soundEnabled: input.soundEnabled ?? true,
@@ -59,6 +121,7 @@ export function updateUserPreferences(
     ...preferences,
     displayName: patch.displayName === undefined ? preferences.displayName : ensureNonEmptyText(patch.displayName, 'El nombre', 40),
     accentColor: patch.accentColor === undefined ? preferences.accentColor : createHexColor(patch.accentColor),
+    themeId: patch.themeId ?? preferences.themeId,
     fontFamily: patch.fontFamily ?? preferences.fontFamily,
     locale: patch.locale ?? preferences.locale,
     soundEnabled: patch.soundEnabled ?? preferences.soundEnabled,

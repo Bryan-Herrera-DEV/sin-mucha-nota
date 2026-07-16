@@ -1,10 +1,11 @@
-import { PanelRightClose, Palette, Type, Volume2 } from 'lucide-react'
-import { accentColorOptions, fontOptions, type FontFamily, type Locale } from '@/domain/preferences/preferences'
-import { useI18n } from '@/i18n/useI18n'
+import { PanelRightClose, Palette, Sparkles, Type, Volume2 } from 'lucide-react'
+import { accentColorOptions, fontOptions, themeOptions, type FontFamily, type Locale } from '@/domain/preferences/preferences'
+import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
+import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
-import { useWorkspaceStore } from '@/store/workspace.store'
+import { useWorkspaceStore } from '@/app/state/workspace.store'
 
 export function SettingsPanel() {
   const { t } = useI18n()
@@ -19,10 +20,10 @@ export function SettingsPanel() {
   }
 
   return (
-    <aside className="flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 bg-[#14251f]/95 p-3 text-[#e8efe5] shadow-soft backdrop-blur lg:max-h-full">
+    <aside className="app-settings flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 p-3 text-[var(--app-text)] shadow-soft backdrop-blur lg:max-h-full">
       <header className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8fa89b]">{t('settings')}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--app-muted)]">{t('settings')}</p>
           <h2 className="text-xl font-black tracking-[-0.05em] text-white">{t('interface')}</h2>
         </div>
         <Button
@@ -41,15 +42,15 @@ export function SettingsPanel() {
       <div className="space-y-3 overflow-auto pr-1">
         <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <p className="mb-3 text-sm font-black text-white">{t('profile')}</p>
-          <label className="text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
+          <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">
             {t('nameLabel')}
             <input
-              className="mt-2 h-9 w-full rounded-xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
+              className="mt-2 h-9 w-full rounded-xl border border-white/10 bg-[var(--app-panel-strong)] px-3 text-sm normal-case tracking-normal text-white outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
               value={preferences.displayName}
               onChange={(event) => void updatePreferences({ displayName: event.target.value })}
             />
           </label>
-          <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
+          <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">
             {t('languageLabel')}
             <Select
               className="mt-2 h-9"
@@ -61,6 +62,30 @@ export function SettingsPanel() {
               value={preferences.locale}
             />
           </label>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
+          <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
+            <Sparkles size={17} />
+            {t('themeLabel')}
+          </div>
+          <p className="mb-3 text-xs leading-5 text-[var(--app-muted)]">{t('themeBody')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {themeOptions.map((theme) => (
+              <button
+                className={cn('theme-card theme-card-compact text-left', preferences.themeId === theme.value && 'theme-card-selected')}
+                key={theme.value}
+                onClick={() => {
+                  play('open')
+                  void updatePreferences({ themeId: theme.value, accentColor: theme.accentColor })
+                }}
+                type="button"
+              >
+                <span className="theme-card-preview" style={{ background: `linear-gradient(135deg, ${theme.preview[0]}, ${theme.preview[1]})` }} />
+                <span className="block truncate text-xs font-black text-white">{preferences.locale === 'es' ? theme.labelEs : theme.labelEn}</span>
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
@@ -77,7 +102,7 @@ export function SettingsPanel() {
                   play('tap')
                   void updatePreferences({ accentColor: option.value })
                 }}
-                style={{ background: option.value, borderColor: preferences.accentColor === option.value ? '#2f261f' : 'transparent' }}
+                style={{ background: option.value, borderColor: preferences.accentColor === option.value ? '#ffffff' : 'transparent' }}
                 type="button"
               />
             ))}
@@ -114,9 +139,14 @@ export function SettingsPanel() {
           >
             {preferences.soundEnabled ? t('enabled') : t('disabled')}
           </Button>
+          {preferences.soundEnabled ? (
+            <Button className="mt-2 w-full" onClick={() => play('save')} variant="ghost">
+              {t('soundPreview')}
+            </Button>
+          ) : null}
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-[#0d1d17] p-3 text-sm leading-6 text-[#8fa89b]">
+        <section className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm leading-6 text-[var(--app-muted)]">
           <p className="font-black text-white">{t('storage')}</p>
           <p>{storageMode === 'opfs' ? t('storageOpfs') : t('storageIndexedDb')}</p>
         </section>

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema } from 'idb'
-import type { StateStorage } from 'zustand/middleware'
+import type { PersistStorage, StateStorage, StorageValue } from 'zustand/middleware'
 
 const STATE_DATABASE_NAME = 'notas-crema-zustand'
 const STATE_DATABASE_VERSION = 1
@@ -41,4 +41,30 @@ export const zustandIndexedDbStorage: StateStorage = {
 
     await database.delete('state', name)
   },
+}
+
+export function createZustandIndexedDbJsonStorage<T>(): PersistStorage<T> {
+  return {
+    async getItem(name) {
+      const value = await zustandIndexedDbStorage.getItem(name)
+
+      if (!value) {
+        return null
+      }
+
+      try {
+        return JSON.parse(value) as StorageValue<T>
+      } catch {
+        await zustandIndexedDbStorage.removeItem(name)
+
+        return null
+      }
+    },
+    async setItem(name, value) {
+      await zustandIndexedDbStorage.setItem(name, JSON.stringify(value))
+    },
+    async removeItem(name) {
+      await zustandIndexedDbStorage.removeItem(name)
+    },
+  }
 }

@@ -1,14 +1,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Folder } from '@/domain/folders/folder'
 import type { Note } from '@/domain/notes/note'
-import type { UserPreferences } from '@/domain/preferences/preferences'
+import type { ThemeId, UserPreferences } from '@/domain/preferences/preferences'
 import { nowIso, type ISODate } from '@/domain/shared/valueObjects'
 
 const DATABASE_NAME = 'notas-crema'
 const DATABASE_VERSION = 1
 const ACTIVE_PREFERENCES_ID = 'active'
 
-type StoredPreferences = UserPreferences & { id: typeof ACTIVE_PREFERENCES_ID }
+type StoredPreferences = Omit<UserPreferences, 'themeId'> & { themeId?: ThemeId; id: typeof ACTIVE_PREFERENCES_ID }
 
 export type StoredFile = {
   path: string
@@ -107,6 +107,7 @@ export async function loadPreferences(): Promise<UserPreferences | null> {
   return {
     displayName: preferences.displayName,
     accentColor: preferences.accentColor,
+    themeId: preferences.themeId ?? 'forest',
     fontFamily: preferences.fontFamily,
     locale: preferences.locale,
     soundEnabled: preferences.soundEnabled,

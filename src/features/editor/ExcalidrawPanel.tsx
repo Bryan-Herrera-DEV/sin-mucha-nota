@@ -51,8 +51,8 @@ export function ExcalidrawPanel({ noteId, drawing, onChange }: ExcalidrawPanelPr
   }, [])
 
   return (
-    <div className="excalidraw-wrapper h-full min-h-[28rem] overflow-hidden rounded-[1.35rem] border border-white/12 bg-[#0d1d17]">
-      <Suspense fallback={<div className="grid h-full min-h-[28rem] place-items-center text-sm font-bold text-[#8fa89b]">Excalidraw...</div>}>
+    <div className="excalidraw-wrapper h-full min-h-[28rem] overflow-hidden rounded-[1.35rem] border border-white/12 bg-[var(--app-panel-strong)]">
+      <Suspense fallback={<div className="grid h-full min-h-[28rem] place-items-center text-sm font-bold text-[var(--app-muted)]">Excalidraw...</div>}>
         <ExcalidrawCanvas
           key={noteId}
           initialData={drawing as never}
