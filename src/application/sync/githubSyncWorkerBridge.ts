@@ -25,7 +25,14 @@ export function useGithubSyncWorkerBridge(): void {
 
     githubSyncWorker.postMessage({ type: 'start' })
 
+    const syncNow = () => githubSyncWorker?.postMessage({ type: 'sync-now' })
+
+    window.addEventListener('github-sync-now', syncNow)
+    window.addEventListener('github-sync-config-changed', syncNow)
+
     return () => {
+      window.removeEventListener('github-sync-now', syncNow)
+      window.removeEventListener('github-sync-config-changed', syncNow)
       githubSyncWorker?.postMessage({ type: 'stop' })
     }
   }, [bootStatus, bootstrap, loadGithubSettings])

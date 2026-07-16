@@ -13,7 +13,20 @@ import {
 import type { ISODate } from '@/domain/shared/valueObjects'
 import { getVisibleNotes } from '@/application/workspace/noteFilters'
 import { workspaceService } from '@/application/workspace/workspaceService'
-import { loadGithubAuth, loadGithubConfig, loadGithubSyncState, type GithubAuth, type GithubSyncConfig, type GithubSyncState } from '@/infrastructure/db/localDatabase'
+import {
+  deleteGithubAuth,
+  deleteGithubConfig,
+  deleteGithubSyncState,
+  loadGithubAuth,
+  loadGithubConfig,
+  loadGithubSyncState,
+  saveGithubAuth,
+  saveGithubConfig,
+  type GithubAuth,
+  type GithubSyncConfig,
+  type GithubSyncState,
+} from '@/infrastructure/db/localDatabase'
+import { getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
@@ -26,6 +39,14 @@ type OnboardingInput = {
   themeId: ThemeId
   fontFamily: FontFamily
   locale: Locale
+}
+
+type GithubDeviceFlow = {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  expiresAt: number
+  intervalSeconds: number
 }
 
 type WorkspaceState = {
@@ -49,6 +70,10 @@ type WorkspaceState = {
   githubAuth: GithubAuth | null
   githubConfig: GithubSyncConfig | null
   githubSyncState: GithubSyncState | null
+  githubRepos: GithubRepository[]
+  githubDeviceFlow: GithubDeviceFlow | null
+  githubBusy: boolean
+  githubError: string | null
   errorMessage: string | null
 }
 
@@ -71,6 +96,12 @@ type WorkspaceActions = {
   setSettingsOpen(open: boolean): void
   setSidebarCollapsed(collapsed: boolean): void
   loadGithubSettings(): Promise<void>
+  startGithubOAuth(): Promise<void>
+  completeGithubOAuth(): Promise<void>
+  loadGithubRepositories(): Promise<void>
+  selectGithubRepository(repoFullName: string): Promise<void>
+  disconnectGithub(): Promise<void>
+  syncGithubNow(): void
   updatePreferences(patch: Partial<Omit<UserPreferences, 'onboardedAt' | 'updatedAt' | 'accentColor'> & { accentColor: string }>): Promise<void>
 }
 
@@ -99,6 +130,10 @@ const initialWorkspaceState: WorkspaceState = {
   githubAuth: null,
   githubConfig: null,
   githubSyncState: null,
+  githubRepos: [],
+  githubDeviceFlow: null,
+  githubBusy: false,
+  githubError: null,
   errorMessage: null,
 }
 
@@ -406,6 +441,117 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
           set({ githubAuth, githubConfig, githubSyncState })
         },
+        async startGithubOAuth() {
+          const clientId = getGithubClientId()
+
+          if (!clientId) {
+            set({ githubError: 'Configura VITE_GITHUB_CLIENT_ID para activar OAuth con GitHub.' })
+
+            return
+          }
+
+          set({ githubBusy: true, githubError: null })
+
+          try {
+            const deviceFlow = await requestGithubDeviceCode(clientId)
+
+            set({
+              githubDeviceFlow: {
+                deviceCode: deviceFlow.device_code,
+                userCode: deviceFlow.user_code,
+                verificationUri: deviceFlow.verification_uri,
+                expiresAt: Date.now() + deviceFlow.expires_in * 1000,
+                intervalSeconds: deviceFlow.interval,
+              },
+              githubBusy: false,
+            })
+          } catch (error) {
+            set({ githubBusy: false, githubError: getErrorMessage(error) })
+          }
+        },
+        async completeGithubOAuth() {
+          const clientId = getGithubClientId()
+          const deviceFlow = get().githubDeviceFlow
+
+          if (!clientId || !deviceFlow || Date.now() > deviceFlow.expiresAt) {
+            set({ githubDeviceFlow: null, githubBusy: false })
+
+            return
+          }
+
+          try {
+            const token = await pollGithubDeviceToken(clientId, deviceFlow.deviceCode)
+            const user = await getGithubUser(token.access_token)
+            const githubAuth = await saveGithubAuth({
+              accessToken: token.access_token,
+              tokenType: token.token_type,
+              scope: token.scope,
+              username: user.login,
+              avatarUrl: user.avatar_url,
+            })
+
+            set({ githubAuth, githubDeviceFlow: null, githubBusy: false, githubError: null })
+            await get().loadGithubRepositories()
+          } catch (error) {
+            const message = getErrorMessage(error)
+
+            if (message === 'authorization_pending') {
+              return
+            }
+
+            if (message === 'slow_down') {
+              set((state) => ({ githubDeviceFlow: state.githubDeviceFlow ? { ...state.githubDeviceFlow, intervalSeconds: state.githubDeviceFlow.intervalSeconds + 5 } : null }))
+
+              return
+            }
+
+            set({ githubBusy: false, githubError: message })
+          }
+        },
+        async loadGithubRepositories() {
+          const auth = get().githubAuth ?? (await loadGithubAuth())
+
+          if (!auth) {
+            return
+          }
+
+          set({ githubBusy: true, githubError: null })
+
+          try {
+            const githubRepos = await listGithubRepositories(auth.accessToken)
+
+            set({ githubRepos, githubBusy: false })
+          } catch (error) {
+            set({ githubBusy: false, githubError: getErrorMessage(error) })
+          }
+        },
+        async selectGithubRepository(repoFullName) {
+          const repo = get().githubRepos.find((candidate) => candidate.full_name === repoFullName)
+
+          if (!repo) {
+            return
+          }
+
+          const githubConfig = await saveGithubConfig({
+            owner: repo.owner.login,
+            repo: repo.name,
+            repoFullName: repo.full_name,
+            branch: repo.default_branch,
+            basePath: '.notas-online',
+            enabled: true,
+          })
+
+          set({ githubConfig, githubError: null })
+          dispatchGithubSyncEvent('github-sync-now')
+        },
+        async disconnectGithub() {
+          await Promise.all([deleteGithubAuth(), deleteGithubConfig(), deleteGithubSyncState()])
+          set({ githubAuth: null, githubConfig: null, githubSyncState: null, githubRepos: [], githubDeviceFlow: null, githubError: null })
+          dispatchGithubSyncEvent('github-sync-config-changed')
+        },
+        syncGithubNow() {
+          dispatchGithubSyncEvent('github-sync-now')
+        },
         async updatePreferences(patch) {
           const preferences = get().preferences
 
@@ -487,6 +633,16 @@ function sanitizePersistedWorkspaceState(persistedState: unknown): PersistedWork
 
 function isEditorMode(value: unknown): value is EditorMode {
   return value === 'split' || value === 'markdown' || value === 'drawing' || value === 'preview'
+}
+
+function getGithubClientId(): string {
+  return import.meta.env.VITE_GITHUB_CLIENT_ID?.trim() ?? ''
+}
+
+function dispatchGithubSyncEvent(type: 'github-sync-now' | 'github-sync-config-changed'): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(type))
+  }
 }
 
 function getErrorMessage(error: unknown): string {
