@@ -3,6 +3,7 @@ import { accentColorOptions, fontOptions, type FontFamily, type Locale } from '@
 import { useI18n } from '@/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { Button } from '@/shared/ui/Button'
+import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/store/workspace.store'
 
 export function SettingsPanel() {
@@ -18,11 +19,11 @@ export function SettingsPanel() {
   }
 
   return (
-    <aside className="flex h-full max-h-none flex-col rounded-[2rem] border border-white/12 bg-[#14251f]/95 p-4 text-[#e8efe5] shadow-soft backdrop-blur lg:max-h-full">
-      <header className="mb-4 flex items-start justify-between gap-3">
+    <aside className="flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 bg-[#14251f]/95 p-3 text-[#e8efe5] shadow-soft backdrop-blur lg:max-h-full">
+      <header className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#8fa89b]">{t('settings')}</p>
-          <h2 className="text-2xl font-black tracking-[-0.05em] text-white">{t('interface')}</h2>
+          <h2 className="text-xl font-black tracking-[-0.05em] text-white">{t('interface')}</h2>
         </div>
         <Button
           aria-label={t('close')}
@@ -37,31 +38,32 @@ export function SettingsPanel() {
         </Button>
       </header>
 
-      <div className="space-y-5 overflow-auto pr-1">
-        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+      <div className="space-y-3 overflow-auto pr-1">
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <p className="mb-3 text-sm font-black text-white">{t('profile')}</p>
           <label className="text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
             {t('nameLabel')}
             <input
-              className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
+              className="mt-2 h-9 w-full rounded-xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
               value={preferences.displayName}
               onChange={(event) => void updatePreferences({ displayName: event.target.value })}
             />
           </label>
           <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
             {t('languageLabel')}
-            <select
-              className="mt-2 h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm normal-case tracking-normal text-white outline-none focus:border-[var(--accent)]"
+            <Select
+              className="mt-2 h-9"
+              onValueChange={(value) => void updatePreferences({ locale: value as Locale })}
+              options={[
+                { value: 'es', label: 'Español' },
+                { value: 'en', label: 'English' },
+              ]}
               value={preferences.locale}
-              onChange={(event) => void updatePreferences({ locale: event.target.value as Locale })}
-            >
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
+            />
           </label>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Palette size={17} />
             {t('accentLabel')}
@@ -69,7 +71,7 @@ export function SettingsPanel() {
           <div className="grid grid-cols-5 gap-2">
             {accentColorOptions.map((option) => (
               <button
-                className="h-10 rounded-2xl border-2 transition hover:scale-105"
+                className="h-8 rounded-xl border-2 transition hover:scale-105"
                 key={option.value}
                 onClick={() => {
                   play('tap')
@@ -82,25 +84,22 @@ export function SettingsPanel() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Type size={17} />
             {t('fontLabel')}
           </div>
-          <select
-            className="h-11 w-full rounded-2xl border border-white/10 bg-[#0d1d17] px-3 text-sm text-white outline-none focus:border-[var(--accent)]"
+          <Select
+            onValueChange={(value) => void updatePreferences({ fontFamily: value as FontFamily })}
+            options={fontOptions.map((option) => ({
+              value: option.value,
+              label: preferences.locale === 'es' ? option.labelEs : option.labelEn,
+            }))}
             value={preferences.fontFamily}
-            onChange={(event) => void updatePreferences({ fontFamily: event.target.value as FontFamily })}
-          >
-            {fontOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {preferences.locale === 'es' ? option.labelEs : option.labelEn}
-              </option>
-            ))}
-          </select>
+          />
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/6 p-4">
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Volume2 size={17} />
             {t('sounds')}
@@ -117,7 +116,7 @@ export function SettingsPanel() {
           </Button>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-[#0d1d17] p-4 text-sm leading-7 text-[#8fa89b]">
+        <section className="rounded-2xl border border-white/10 bg-[#0d1d17] p-3 text-sm leading-6 text-[#8fa89b]">
           <p className="font-black text-white">{t('storage')}</p>
           <p>{storageMode === 'opfs' ? t('storageOpfs') : t('storageIndexedDb')}</p>
         </section>

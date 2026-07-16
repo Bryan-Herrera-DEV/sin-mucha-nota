@@ -8,10 +8,12 @@ import { useWorkspaceStore } from '@/store/workspace.store'
 import { useI18n } from '@/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
+import { Select } from '@/shared/ui/Select'
 import { ExcalidrawPanel } from '@/features/editor/ExcalidrawPanel'
 import { MarkdownPreview } from '@/features/editor/MarkdownPreview'
 
 const editorModes: EditorMode[] = ['markdown', 'preview', 'drawing', 'split']
+const ROOT_FOLDER_VALUE = 'root-folder'
 
 export function EditorWorkspace() {
   const { t } = useI18n()
@@ -62,14 +64,14 @@ export function EditorWorkspace() {
 
   return (
     <main className="notes-dark flex min-h-0 flex-1 flex-col overflow-hidden bg-[radial-gradient(circle_at_55%_0%,rgb(60_91_73_/_0.32),transparent_28rem),#0a1813] text-[#e8efe5]">
-      <header className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 lg:px-10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 lg:px-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="flex items-center gap-2 text-sm font-bold text-[#8fa89b]">
+            <p className="flex items-center gap-2 text-xs font-bold text-[#8fa89b]">
               <CalendarDays size={15} />
               Daily notes
             </p>
-            <h1 className="mt-1 text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl">Today, {today}</h1>
+            <h1 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white sm:text-3xl">Today, {today}</h1>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-[#8fa89b]">
             <span className="rounded-full border border-white/10 bg-white/8 px-3 py-2">{visibleNotes.length} notes</span>
@@ -80,7 +82,7 @@ export function EditorWorkspace() {
         </div>
 
         <form
-          className="relative max-w-3xl"
+          className="relative max-w-2xl"
           onSubmit={(event) => {
             event.preventDefault()
 
@@ -94,18 +96,18 @@ export function EditorWorkspace() {
           }}
         >
           <input
-            className="h-14 w-full rounded-2xl border border-white/12 bg-[#14251f]/85 px-5 pr-14 text-sm text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.06)] outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+            className="h-11 w-full rounded-2xl border border-white/12 bg-[#14251f]/85 px-4 pr-12 text-sm text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.06)] outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
             placeholder="Star writing right here..."
             value={newNoteTitle}
             onChange={(event) => setNewNoteTitle(event.target.value)}
           />
-          <button className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]" type="submit">
-            <Plus size={18} />
+          <button className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]" type="submit">
+            <Plus size={16} />
           </button>
         </form>
       </header>
 
-      <section className="grid min-h-0 flex-1 gap-5 overflow-hidden p-5 lg:grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] lg:p-8 lg:px-10">
+      <section className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] lg:p-5 lg:px-7">
         <div className="min-h-0 overflow-auto pr-1">
           <div className="space-y-3">
             {visibleNotes.map((note) => (
@@ -128,14 +130,14 @@ export function EditorWorkspace() {
           </div>
         </div>
 
-        <article className="min-h-0 overflow-hidden rounded-[1.65rem] border border-white/12 bg-[#14251f]/85 shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
+        <article className="min-h-0 overflow-hidden rounded-[1.35rem] border border-white/12 bg-[#14251f]/85 shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
           {activeNote ? (
             <div className="flex h-full min-h-0 flex-col">
-              <header className="border-b border-white/10 p-5">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <header className="border-b border-white/10 p-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0 flex-1">
                     <input
-                      className="w-full bg-transparent text-2xl font-black tracking-[-0.04em] text-white outline-none sm:text-3xl"
+                      className="w-full bg-transparent text-xl font-black tracking-[-0.04em] text-white outline-none sm:text-2xl"
                       value={titleDraft}
                       onBlur={() => void renameActiveNote(titleDraft)}
                       onChange={(event) => setTitleDraft(event.target.value)}
@@ -145,20 +147,18 @@ export function EditorWorkspace() {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className="h-10 rounded-full border border-white/12 bg-[#0d1d17] px-3 text-sm font-bold text-white outline-none focus:border-[var(--accent)]"
-                      value={activeNote.folderId ?? ''}
-                      onChange={(event) => void moveActiveNote((event.target.value || null) as FolderId | null)}
-                    >
-                      <option value="">{t('rootFolder')}</option>
-                      {folders.map((folder) => (
-                        <option key={folder.id} value={folder.id}>
-                          {folder.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      ariaLabel={t('moveTo')}
+                      className="h-9 w-44 rounded-full text-sm"
+                      onValueChange={(value) => void moveActiveNote(value === ROOT_FOLDER_VALUE ? null : (value as FolderId))}
+                      options={[
+                        { value: ROOT_FOLDER_VALUE, label: t('rootFolder') },
+                        ...folders.map((folder) => ({ value: folder.id, label: folder.name })),
+                      ]}
+                      value={activeNote.folderId ?? ROOT_FOLDER_VALUE}
+                    />
                     <button
-                      className="flex h-10 items-center gap-2 rounded-full bg-[var(--accent)] px-4 text-sm font-black text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
+                      className="flex h-9 items-center gap-2 rounded-full bg-[var(--accent)] px-3 text-sm font-black text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
                       disabled={!isDirty || contentStatus === 'saving'}
                       onClick={() => {
                         play('save')
@@ -172,11 +172,11 @@ export function EditorWorkspace() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {editorModes.map((mode) => (
                     <button
                       className={cn(
-                        'rounded-full border px-3 py-1.5 text-xs font-black transition',
+                        'rounded-full border px-2.5 py-1 text-xs font-black transition',
                         editorMode === mode ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]' : 'border-white/10 bg-white/6 text-[#8fa89b] hover:text-white',
                       )}
                       key={mode}
@@ -192,18 +192,18 @@ export function EditorWorkspace() {
                 </div>
               </header>
 
-              <div className="min-h-0 flex-1 overflow-auto p-5">
+              <div className="min-h-0 flex-1 overflow-auto p-4">
                 {activeContentReady ? (
                   <section
                     className={cn(
-                      'grid min-h-full gap-4',
+                      'grid min-h-full gap-3',
                       editorMode === 'split' && 'xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)]',
                       editorMode !== 'split' && 'grid-cols-1',
                     )}
                   >
                     {(editorMode === 'split' || editorMode === 'markdown') && (
                       <textarea
-                        className="min-h-[26rem] resize-none rounded-[1.35rem] border border-white/12 bg-[#0d1d17] p-5 font-serif text-base leading-8 text-[#e8efe5] outline-none transition placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+                        className="min-h-[22rem] resize-none rounded-[1.1rem] border border-white/12 bg-[#0d1d17] p-4 font-serif text-sm leading-7 text-[#e8efe5] outline-none transition placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
                         placeholder={t('editorPlaceholder')}
                         value={markdownDraft}
                         onChange={(event) => updateMarkdownDraft(event.target.value)}
@@ -215,17 +215,17 @@ export function EditorWorkspace() {
                     {(editorMode === 'split' || editorMode === 'drawing') && <ExcalidrawPanel drawing={drawingDraft} noteId={activeNote.id} onChange={updateDrawingDraft} />}
                   </section>
                 ) : (
-                  <div className="grid min-h-[24rem] place-items-center rounded-[1.35rem] border border-white/12 bg-[#0d1d17] text-sm font-bold text-[#8fa89b]">
+                  <div className="grid min-h-[22rem] place-items-center rounded-[1.1rem] border border-white/12 bg-[#0d1d17] text-sm font-bold text-[#8fa89b]">
                     {t('loading')}
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="grid h-full min-h-[30rem] place-items-center p-8 text-center">
+            <div className="grid h-full min-h-[28rem] place-items-center p-6 text-center">
               <div className="max-w-md">
                 <FileText className="mx-auto text-[var(--accent)]" size={34} />
-                <h2 className="mt-4 text-3xl font-black tracking-[-0.05em] text-white">{t('noNoteTitle')}</h2>
+                <h2 className="mt-4 text-2xl font-black tracking-[-0.05em] text-white">{t('noNoteTitle')}</h2>
                 <p className="mt-3 leading-7 text-[#8fa89b]">{t('noNoteBody')}</p>
               </div>
             </div>
@@ -249,11 +249,11 @@ function NoteCard({ note, folder, active, markdownPreview, onSelect, onDelete }:
   const excerpt = markdownPreview.trim().replace(/[#*_>`-]/g, '').replace(/\s+/g, ' ').slice(0, 150)
 
   return (
-    <article className={cn('group rounded-[1.35rem] border p-4 transition', active ? 'border-[var(--accent)] bg-[#20362d]' : 'border-white/10 bg-[#14251f]/75 hover:border-white/20 hover:bg-[#1a2c25]')}>
+    <article className={cn('group rounded-[1.1rem] border p-3 transition', active ? 'border-[var(--accent)] bg-[#20362d]' : 'border-white/10 bg-[#14251f]/75 hover:border-white/20 hover:bg-[#1a2c25]')}>
       <button className="w-full text-left" onClick={onSelect} type="button">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-black text-white">{note.title}</h3>
+            <h3 className="truncate text-sm font-black text-white">{note.title}</h3>
             <p className="mt-1 flex items-center gap-1 text-xs font-bold text-[#8fa89b]">
               <span className="h-2 w-2 rounded-sm border border-[var(--accent)]" />
               {folder?.name ?? 'Personal'}
@@ -261,7 +261,7 @@ function NoteCard({ note, folder, active, markdownPreview, onSelect, onDelete }:
           </div>
           <span className="text-xs font-bold text-[#8fa89b]">{new Date(note.updatedAt).toLocaleDateString()}</span>
         </div>
-        <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#c7d4ca]">{excerpt || 'Markdown + Excalidraw note ready to edit.'}</p>
+        <p className="mt-3 line-clamp-3 text-xs leading-5 text-[#c7d4ca]">{excerpt || 'Markdown + Excalidraw note ready to edit.'}</p>
       </button>
       <button className="mt-3 hidden items-center gap-1 text-xs font-bold text-[#ff8b8b] group-hover:flex" onClick={onDelete} type="button">
         <Trash2 size={13} />

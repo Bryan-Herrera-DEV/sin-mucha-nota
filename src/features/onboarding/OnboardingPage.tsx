@@ -5,6 +5,7 @@ import { useWorkspaceStore } from '@/store/workspace.store'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/shared/lib/cn'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
+import { Select } from '@/shared/ui/Select'
 
 export function OnboardingPage() {
   const completeOnboarding = useWorkspaceStore((state) => state.completeOnboarding)
@@ -18,7 +19,7 @@ export function OnboardingPage() {
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key)
 
   return (
-    <main className="grid min-h-svh place-items-center px-4 py-10">
+    <main className="grid h-svh place-items-center overflow-auto px-4 py-6">
       <section className="grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-line bg-paper shadow-soft lg:grid-cols-[0.95fr_1.05fr]">
         <div className="relative isolate flex min-h-[30rem] flex-col justify-between overflow-hidden bg-[linear-gradient(145deg,var(--paper-soft),var(--cream))] p-8 sm:p-10">
           <div className="absolute -right-20 -top-20 -z-10 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-2xl" />
@@ -58,29 +59,30 @@ export function OnboardingPage() {
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="text-sm font-bold text-ink">
               {t('languageLabel')}
-              <select
-                className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper-soft px-4 text-ink outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              <Select
+                className="mt-2 h-11 rounded-2xl"
+                onValueChange={(value) => setLocale(value as Locale)}
+                options={[
+                  { value: 'es', label: 'Español' },
+                  { value: 'en', label: 'English' },
+                ]}
                 value={locale}
-                onChange={(event) => setLocale(event.target.value as Locale)}
-              >
-                <option value="es">Español</option>
-                <option value="en">English</option>
-              </select>
+                variant="light"
+              />
             </label>
 
             <label className="text-sm font-bold text-ink">
               {t('fontLabel')}
-              <select
-                className="mt-2 h-12 w-full rounded-2xl border border-line bg-paper-soft px-4 text-ink outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+              <Select
+                className="mt-2 h-11 rounded-2xl"
+                onValueChange={(value) => setFontFamily(value as FontFamily)}
+                options={fontOptions.map((option) => ({
+                  value: option.value,
+                  label: locale === 'es' ? option.labelEs : option.labelEn,
+                }))}
                 value={fontFamily}
-                onChange={(event) => setFontFamily(event.target.value as FontFamily)}
-              >
-                {fontOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {locale === 'es' ? option.labelEs : option.labelEn}
-                  </option>
-                ))}
-              </select>
+                variant="light"
+              />
             </label>
           </div>
 

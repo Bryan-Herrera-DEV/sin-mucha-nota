@@ -40,6 +40,7 @@ type WorkspaceState = {
   search: string
   isDirty: boolean
   settingsOpen: boolean
+  sidebarCollapsed: boolean
   lastSavedAt: ISODate | null
   errorMessage: string | null
 }
@@ -61,6 +62,7 @@ type WorkspaceActions = {
   setEditorMode(mode: EditorMode): void
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
+  setSidebarCollapsed(collapsed: boolean): void
   updatePreferences(patch: Partial<Omit<UserPreferences, 'onboardedAt' | 'updatedAt' | 'accentColor'> & { accentColor: string }>): Promise<void>
 }
 
@@ -82,6 +84,7 @@ const initialWorkspaceState: WorkspaceState = {
   search: '',
   isDirty: false,
   settingsOpen: false,
+  sidebarCollapsed: false,
   lastSavedAt: null,
   errorMessage: null,
 }
@@ -375,6 +378,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         setSettingsOpen(open) {
           set({ settingsOpen: open })
         },
+        setSidebarCollapsed(collapsed) {
+          set({ sidebarCollapsed: collapsed })
+        },
         async updatePreferences(patch) {
           const preferences = get().preferences
 
@@ -401,6 +407,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           editorMode: state.editorMode,
           search: state.search,
           settingsOpen: state.settingsOpen,
+          sidebarCollapsed: state.sidebarCollapsed,
         }),
       },
     ),

@@ -8,6 +8,8 @@ import {
   FileText,
   Folder,
   Lightbulb,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plane,
   Plus,
   Settings,
@@ -20,6 +22,7 @@ import type { Note } from '@/domain/notes/note'
 import { useI18n } from '@/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
+import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/store/workspace.store'
 
 const folderIconMap: Record<FolderIcon, ComponentType<{ size?: number; className?: string }>> = {
@@ -45,21 +48,93 @@ export function Sidebar() {
   const deleteFolder = useWorkspaceStore((state) => state.deleteFolder)
   const setSearch = useWorkspaceStore((state) => state.setSearch)
   const setSettingsOpen = useWorkspaceStore((state) => state.setSettingsOpen)
+  const sidebarCollapsed = useWorkspaceStore((state) => state.sidebarCollapsed)
+  const setSidebarCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed)
   const [folderName, setFolderName] = useState('')
   const [folderIcon, setFolderIcon] = useState<FolderIcon>('folder')
   const play = useSoundFeedback()
 
+  if (sidebarCollapsed) {
+    return (
+      <aside className="flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 bg-[#10231d]/95 px-3 py-2 text-[#e8efe5] shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3">
+        <button
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/8 text-white transition hover:bg-white/12"
+          onClick={() => setSidebarCollapsed(false)}
+          title="Expandir menu"
+          type="button"
+        >
+          <PanelLeftOpen size={15} />
+        </button>
+        <button
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10 text-white"
+          onClick={() => {
+            selectFolder(null)
+            play('open')
+          }}
+          title="Daily notes"
+          type="button"
+        >
+          <FileText size={15} />
+        </button>
+        <div className="flex min-w-0 flex-1 gap-2 overflow-auto lg:w-full lg:flex-col lg:items-center">
+          {folders
+            .filter((folder) => folder.parentId === null)
+            .map((folder) => {
+              const FolderIcon = folderIconMap[folder.icon]
+
+              return (
+                <button
+                  className={cn(
+                    'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#d8e5d9] transition hover:bg-white/10 hover:text-white',
+                    activeFolderId === folder.id && 'bg-white/12 text-white',
+                  )}
+                  key={folder.id}
+                  onClick={() => {
+                    selectFolder(folder.id)
+                    play('open')
+                  }}
+                  title={folder.name}
+                  type="button"
+                >
+                  <FolderIcon size={15} />
+                </button>
+              )
+            })}
+        </div>
+        <button
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#8fa89b] transition hover:bg-white/10 hover:text-white"
+          onClick={() => {
+            play('open')
+            setSettingsOpen(true)
+          }}
+          title={t('settings')}
+          type="button"
+        >
+          <Settings size={15} />
+        </button>
+      </aside>
+    )
+  }
+
   return (
-    <aside className="flex min-h-0 flex-col border-b border-white/10 bg-[#10231d]/95 px-4 py-4 text-[#e8efe5] shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[18rem] lg:border-b-0 lg:border-r">
-      <div className="mb-6 flex items-center gap-2">
+    <aside className="flex min-h-0 flex-col border-b border-white/10 bg-[#10231d]/95 px-3 py-3 text-[#e8efe5] shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r">
+      <div className="mb-4 flex items-center gap-2">
         <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
         <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
         <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+        <button
+          className="ml-auto grid h-8 w-8 place-items-center rounded-full text-[#8fa89b] transition hover:bg-white/10 hover:text-white"
+          onClick={() => setSidebarCollapsed(true)}
+          title="Colapsar menu"
+          type="button"
+        >
+          <PanelLeftClose size={15} />
+        </button>
       </div>
 
       <nav className="space-y-2">
         <button
-          className="flex w-full items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.08)]"
+          className="flex w-full items-center gap-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-left text-sm font-bold text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.08)]"
           onClick={() => {
             selectFolder(null)
             play('open')
@@ -71,7 +146,7 @@ export function Sidebar() {
         </button>
         <button
           className={cn(
-            'flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-left text-sm font-semibold text-[#d8e5d9] transition hover:bg-white/8',
+            'flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-[#d8e5d9] transition hover:bg-white/8',
             activeFolderId === null && 'text-white',
           )}
           onClick={() => {
@@ -85,10 +160,10 @@ export function Sidebar() {
         </button>
       </nav>
 
-      <label className="relative mt-5 block">
+      <label className="relative mt-4 block">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8fa89b]">⌕</span>
         <input
-          className="h-10 w-full rounded-full border border-white/10 bg-black/15 pl-9 pr-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent-soft)]"
+          className="h-9 w-full rounded-full border border-white/10 bg-black/15 pl-9 pr-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
           placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(event) => {
@@ -98,10 +173,10 @@ export function Sidebar() {
         />
       </label>
 
-      <div className="my-5 h-px bg-white/10" />
+      <div className="my-4 h-px bg-white/10" />
 
       <section className="min-h-0 flex-1 overflow-auto pr-1">
-        <div className="mb-3 flex items-center justify-between px-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8fa89b]">
+        <div className="mb-2 flex items-center justify-between px-1 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[#8fa89b]">
           <span>{t('folders')}</span>
           <span>{folders.length}</span>
         </div>
@@ -127,7 +202,7 @@ export function Sidebar() {
       </section>
 
       <form
-        className="mt-4 rounded-[1.35rem] border border-white/10 bg-black/15 p-2"
+        className="mt-3 rounded-[1.15rem] border border-white/10 bg-black/15 p-2"
         onSubmit={(event) => {
           event.preventDefault()
 
@@ -142,39 +217,35 @@ export function Sidebar() {
         }}
       >
         <div className="mb-2 grid grid-cols-[4.2rem_minmax(0,1fr)] gap-2">
-          <select
-            className="h-10 rounded-full border border-white/10 bg-[#183027] px-2 text-xs font-bold text-white outline-none focus:border-[var(--accent)]"
+          <Select
+            ariaLabel="Folder icon"
+            className="h-9 rounded-full px-2 text-xs"
+            onValueChange={(value) => setFolderIcon(value as FolderIcon)}
+            options={folderIconOptions.map((option) => ({ value: option.value, label: option.label }))}
             value={folderIcon}
-            onChange={(event) => setFolderIcon(event.target.value as FolderIcon)}
-          >
-            {folderIconOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          />
           <input
-            className="h-10 rounded-full border border-white/10 bg-[#183027] px-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)]"
+            className="h-9 rounded-full border border-white/10 bg-[#183027] px-3 text-sm text-white outline-none placeholder:text-[#8fa89b] focus:border-[var(--accent)]"
             placeholder={activeFolderId ? t('newSubfolder') : t('folderNamePlaceholder')}
             value={folderName}
             onChange={(event) => setFolderName(event.target.value)}
           />
         </div>
-        <button className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-black text-white transition hover:bg-[var(--accent-strong)]" type="submit">
+        <button className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-black text-white transition hover:bg-[var(--accent-strong)]" type="submit">
           <Plus size={16} />
           {t('newFolder')}
         </button>
       </form>
 
       <button
-        className="mt-4 flex items-center gap-3 rounded-[1.2rem] border border-white/10 bg-white/8 p-3 text-left"
+        className="mt-3 flex items-center gap-3 rounded-[1.1rem] border border-white/10 bg-white/8 p-2.5 text-left"
         onClick={() => {
           play('open')
           setSettingsOpen(true)
         }}
         type="button"
       >
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--accent)] text-sm font-black text-white">
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--accent)] text-sm font-black text-white">
           {preferences?.displayName.slice(0, 1).toUpperCase()}
         </span>
         <span className="min-w-0 flex-1">
