@@ -66,7 +66,7 @@ export async function listFolders(): Promise<Folder[]> {
   const database = await getLocalDatabase()
   const folders = await database.getAll('folders')
 
-  return folders.sort((first, second) => first.name.localeCompare(second.name))
+  return folders.map(normalizeFolder).sort((first, second) => first.name.localeCompare(second.name))
 }
 
 export async function saveFolder(folder: Folder): Promise<void> {
@@ -143,4 +143,11 @@ export async function saveStoredFile(file: Omit<StoredFile, 'updatedAt'>): Promi
 export async function deleteStoredFile(path: string): Promise<void> {
   const database = await getLocalDatabase()
   await database.delete('files', path)
+}
+
+function normalizeFolder(folder: Folder): Folder {
+  return {
+    ...folder,
+    icon: folder.icon ?? 'folder',
+  }
 }

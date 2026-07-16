@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist, subscribeWithSelector } from 'zustand/middleware'
-import type { Folder, FolderId } from '@/domain/folders/folder'
+import type { Folder, FolderIcon, FolderId } from '@/domain/folders/folder'
 import { createEmptyDrawing, type DrawingDocument, type Note, type NoteId } from '@/domain/notes/note'
 import {
   createUserPreferences,
@@ -35,6 +35,7 @@ type WorkspaceState = {
   activeNoteId: NoteId | null
   markdownDraft: string
   drawingDraft: DrawingDocument
+  loadedContentNoteId: NoteId | null
   editorMode: EditorMode
   search: string
   isDirty: boolean
@@ -48,14 +49,14 @@ type WorkspaceActions = {
   completeOnboarding(input: OnboardingInput): Promise<void>
   selectFolder(folderId: FolderId | null): void
   selectNote(noteId: NoteId): Promise<void>
-  createFolder(name: string, parentId: FolderId | null): Promise<void>
+  createFolder(name: string, parentId: FolderId | null, icon: FolderIcon): Promise<void>
   createNote(title: string, folderId: FolderId | null): Promise<void>
   renameActiveNote(title: string): Promise<void>
   moveActiveNote(folderId: FolderId | null): Promise<void>
   deleteNote(noteId: NoteId): Promise<void>
   deleteFolder(folderId: FolderId): Promise<void>
   updateMarkdownDraft(markdown: string): void
-  updateDrawingDraft(drawing: DrawingDocument): void
+  updateDrawingDraft(noteId: NoteId, drawing: DrawingDocument): void
   saveActiveNote(): Promise<void>
   setEditorMode(mode: EditorMode): void
   setSearch(search: string): void
@@ -76,6 +77,7 @@ const initialWorkspaceState: WorkspaceState = {
   activeNoteId: null,
   markdownDraft: '',
   drawingDraft: createEmptyDrawing(),
+  loadedContentNoteId: null,
   editorMode: 'split',
   search: '',
   isDirty: false,
@@ -111,6 +113,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeNoteId: activeNote?.id ?? null,
               markdownDraft: content?.markdown ?? '',
               drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              loadedContentNoteId: activeNote?.id ?? null,
               isDirty: false,
               bootStatus: 'ready',
               contentStatus: activeNote ? 'ready' : 'idle',
@@ -137,6 +140,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeNoteId: activeNote?.id ?? null,
               markdownDraft: content?.markdown ?? '',
               drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              loadedContentNoteId: activeNote?.id ?? null,
               isDirty: false,
               bootStatus: 'ready',
               contentStatus: activeNote ? 'ready' : 'idle',
@@ -160,7 +164,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             await get().saveActiveNote()
           }
 
-          set({ activeNoteId: noteId, activeFolderId: note.folderId, contentStatus: 'loading', errorMessage: null })
+          set({
+            activeNoteId: noteId,
+            activeFolderId: note.folderId,
+            markdownDraft: '',
+            drawingDraft: createEmptyDrawing(),
+            loadedContentNoteId: null,
+            isDirty: false,
+            contentStatus: 'loading',
+            errorMessage: null,
+          })
 
           try {
             const content = await workspaceService.loadNoteContent(note)
@@ -172,6 +185,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             set({
               markdownDraft: content.markdown,
               drawingDraft: content.drawing,
+              loadedContentNoteId: noteId,
               isDirty: false,
               contentStatus: 'ready',
               lastSavedAt: note.updatedAt,
@@ -180,9 +194,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             set({ contentStatus: 'error', errorMessage: getErrorMessage(error) })
           }
         },
-        async createFolder(name, parentId) {
+        async createFolder(name, parentId, icon) {
           try {
-            const folder = await workspaceService.createFolder(name, parentId)
+            const folder = await workspaceService.createFolder(name, parentId, icon)
 
             set((state) => ({
               folders: [...state.folders, folder].sort((first, second) => first.name.localeCompare(second.name)),
@@ -206,6 +220,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeFolderId: folderId,
               markdownDraft: '',
               drawingDraft: createEmptyDrawing(),
+              loadedContentNoteId: note.id,
               isDirty: false,
               contentStatus: 'ready',
               lastSavedAt: note.updatedAt,
@@ -273,6 +288,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                 activeNoteId: null,
                 markdownDraft: '',
                 drawingDraft: createEmptyDrawing(),
+                loadedContentNoteId: null,
                 contentStatus: 'idle',
                 lastSavedAt: null,
               })
@@ -300,7 +316,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               if (nextNote) {
                 await get().selectNote(nextNote.id)
               } else {
-                set({ activeNoteId: null, markdownDraft: '', drawingDraft: createEmptyDrawing(), contentStatus: 'idle' })
+                set({ activeNoteId: null, markdownDraft: '', drawingDraft: createEmptyDrawing(), loadedContentNoteId: null, contentStatus: 'idle' })
               }
             }
           } catch (error) {
@@ -308,9 +324,17 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         },
         updateMarkdownDraft(markdown) {
+          if (get().activeNoteId !== get().loadedContentNoteId) {
+            return
+          }
+
           set({ markdownDraft: markdown, isDirty: true })
         },
-        updateDrawingDraft(drawing) {
+        updateDrawingDraft(noteId, drawing) {
+          if (get().activeNoteId !== noteId || get().loadedContentNoteId !== noteId) {
+            return
+          }
+
           if (areDrawingsEqual(get().drawingDraft, drawing)) {
             return
           }
@@ -320,7 +344,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         async saveActiveNote() {
           const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
 
-          if (!activeNote || !get().isDirty) {
+          if (!activeNote || !get().isDirty || get().loadedContentNoteId !== activeNote.id) {
             return
           }
 

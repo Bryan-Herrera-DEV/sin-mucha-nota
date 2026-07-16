@@ -1,4 +1,4 @@
-import { createFolder, type Folder, type FolderId } from '@/domain/folders/folder'
+import { createFolder, type Folder, type FolderIcon, type FolderId } from '@/domain/folders/folder'
 import {
   createEmptyDrawing,
   createNote,
@@ -63,8 +63,8 @@ class WorkspaceService {
     await savePreferences(preferences)
   }
 
-  async createFolder(name: string, parentId: FolderId | null): Promise<Folder> {
-    const folder = createFolder({ name, parentId })
+  async createFolder(name: string, parentId: FolderId | null, icon: FolderIcon): Promise<Folder> {
+    const folder = createFolder({ name, parentId, icon })
 
     await saveFolder(folder)
 
@@ -145,8 +145,8 @@ class WorkspaceService {
   }
 
   private async seedWorkspace(preferences: UserPreferences): Promise<void> {
-    const homeFolder = createFolder({ name: preferences.locale === 'en' ? 'Home' : 'Inicio', parentId: null })
-    const sketchesFolder = createFolder({ name: preferences.locale === 'en' ? 'Sketches' : 'Bocetos', parentId: homeFolder.id })
+    const homeFolder = createFolder({ name: preferences.locale === 'en' ? 'Home' : 'Inicio', parentId: null, icon: 'personal' })
+    const sketchesFolder = createFolder({ name: preferences.locale === 'en' ? 'Sketches' : 'Bocetos', parentId: homeFolder.id, icon: 'idea' })
     const welcomeNote = createNote({ title: preferences.locale === 'en' ? 'First warm note' : 'Primera nota calida', folderId: homeFolder.id })
 
     await Promise.all([
