@@ -8,7 +8,11 @@ App local para tomar notas con Markdown, Excalidraw, carpetas anidadas, sonidos 
 npm install
 npm run dev
 npm run build
+npm run benchmark
 ```
+
+`npm run benchmark` genera un workspace sintetico con miles de notas y archivos pesados para medir filtros, conteos de carpetas, snapshot de sync y base64 de GitHub.
+Ejemplo: `npm run benchmark -- --notes=12000 --folders=2400 --markdownKb=12 --drawingKb=6 --compare-legacy`.
 
 ## GitHub OAuth
 

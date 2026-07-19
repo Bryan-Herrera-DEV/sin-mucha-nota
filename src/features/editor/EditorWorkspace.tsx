@@ -49,8 +49,9 @@ export function EditorWorkspace() {
   const deferredMarkdown = useDeferredValue(markdownDraft)
   const play = useSoundFeedback()
   const visibleNotes = getVisibleNotes(notes, folders, activeFolderId, search)
+  const folderById = createFolderById(folders)
   const activeContentReady = activeNote !== null && loadedContentNoteId === activeNote.id && contentStatus !== 'loading'
-  const activeFolder = activeFolderId ? (folders.find((folder) => folder.id === activeFolderId) ?? null) : null
+  const activeFolder = activeFolderId ? (folderById.get(activeFolderId) ?? null) : null
   const viewTitle = activeFolder?.name ?? t('allNotes')
   const today = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date())
 
@@ -131,7 +132,7 @@ export function EditorWorkspace() {
                         active={activeNote?.id === note.id}
                         deleteLabel={t('delete')}
                         fallbackFolderLabel={t('rootFolder')}
-                        folder={folders.find((candidate) => candidate.id === note.folderId) ?? null}
+                        folder={note.folderId ? (folderById.get(note.folderId) ?? null) : null}
                         key={note.id}
                         markdownPreview={activeNote?.id === note.id ? markdownDraft : ''}
                         note={note}
@@ -333,4 +334,14 @@ function NoteCard({ note, folder, deleteLabel, fallbackFolderLabel, active, mark
       </button>
     </motion.article>
   )
+}
+
+function createFolderById(folders: FolderEntity[]): Map<FolderId, FolderEntity> {
+  const folderById = new Map<FolderId, FolderEntity>()
+
+  for (const folder of folders) {
+    folderById.set(folder.id, folder)
+  }
+
+  return folderById
 }

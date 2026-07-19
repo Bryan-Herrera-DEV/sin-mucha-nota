@@ -19,12 +19,12 @@ import {
   UserRound,
 } from 'lucide-react'
 import { folderIconOptions, type Folder as FolderEntity, type FolderIcon, type FolderId } from '@/domain/folders/folder'
-import type { Note } from '@/domain/notes/note'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
 import { listContainer, listItem, smoothSpring } from '@/shared/lib/motionPresets'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
+import { createFolderTreeIndex, type FolderTreeIndex } from '@/application/workspace/noteFilters'
 
 const folderIconMap: Record<FolderIcon, ComponentType<{ size?: number; className?: string }>> = {
   folder: Folder,
@@ -53,6 +53,7 @@ export function Sidebar() {
   const setSidebarCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed)
   const [folderName, setFolderName] = useState('')
   const [folderIcon, setFolderIcon] = useState<FolderIcon>('folder')
+  const folderIndex = createFolderTreeIndex(folders, notes)
   const play = useSoundFeedback()
 
   return (
@@ -87,9 +88,7 @@ export function Sidebar() {
         </button>
         <motion.div className="flex min-w-0 flex-1 gap-2 overflow-auto lg:w-full lg:flex-col lg:items-center" variants={listContainer} initial="hidden" animate="visible">
           <AnimatePresence initial={false}>
-            {folders
-              .filter((folder) => folder.parentId === null)
-              .map((folder) => {
+            {folderIndex.rootFolders.map((folder) => {
               const FolderIcon = folderIconMap[folder.icon]
 
               return (
@@ -189,16 +188,13 @@ export function Sidebar() {
 
         <motion.div className="space-y-1" variants={listContainer} initial="hidden" animate="visible">
           <AnimatePresence initial={false}>
-            {folders
-              .filter((folder) => folder.parentId === null)
-              .map((folder) => (
+            {folderIndex.rootFolders.map((folder) => (
               <FolderNode
                 activeFolderId={activeFolderId}
                 deleteFolder={deleteFolder}
                 folder={folder}
-                folders={folders}
+                folderIndex={folderIndex}
                 key={folder.id}
-                notes={notes}
                 onSelect={(folderId) => {
                   selectFolder(folderId)
                   play('open')
@@ -286,18 +282,17 @@ export function Sidebar() {
 
 type FolderNodeProps = {
   folder: FolderEntity
-  folders: FolderEntity[]
-  notes: Note[]
+  folderIndex: FolderTreeIndex
   activeFolderId: FolderId | null
   onSelect(folderId: FolderId): void
   deleteFolder(folderId: FolderId): Promise<void>
 }
 
-function FolderNode({ folder, folders, notes, activeFolderId, onSelect, deleteFolder }: FolderNodeProps) {
+function FolderNode({ folder, folderIndex, activeFolderId, onSelect, deleteFolder }: FolderNodeProps) {
   const [open, setOpen] = useState(true)
-  const children = folders.filter((candidate) => candidate.parentId === folder.id)
+  const children = folderIndex.childrenByParent.get(folder.id) ?? []
   const FolderIcon = folderIconMap[folder.icon]
-  const count = countNotesInFolder(folder.id, folders, notes)
+  const count = folderIndex.noteCountByFolderId.get(folder.id) ?? 0
 
   return (
     <motion.div layout variants={listItem} initial="hidden" animate="visible" exit="exit">
@@ -329,23 +324,11 @@ function FolderNode({ folder, folders, notes, activeFolderId, onSelect, deleteFo
         {open && children.length > 0 ? (
           <motion.div className="ml-5 border-l border-white/10 pl-2" key="children" layout initial={{ opacity: 0, height: 0, y: -6 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -6 }} transition={smoothSpring}>
             {children.map((child) => (
-              <FolderNode activeFolderId={activeFolderId} deleteFolder={deleteFolder} folder={child} folders={folders} key={child.id} notes={notes} onSelect={onSelect} />
+              <FolderNode activeFolderId={activeFolderId} deleteFolder={deleteFolder} folder={child} folderIndex={folderIndex} key={child.id} onSelect={onSelect} />
             ))}
           </motion.div>
         ) : null}
       </AnimatePresence>
     </motion.div>
   )
-}
-
-function countNotesInFolder(folderId: FolderId, folders: FolderEntity[], notes: Note[]): number {
-  const folderIds = [folderId, ...collectDescendantFolderIds(folderId, folders)]
-
-  return notes.filter((note) => note.folderId !== null && folderIds.includes(note.folderId)).length
-}
-
-function collectDescendantFolderIds(folderId: FolderId, folders: FolderEntity[]): FolderId[] {
-  const childFolders = folders.filter((folder) => folder.parentId === folderId)
-
-  return childFolders.flatMap((folder) => [folder.id, ...collectDescendantFolderIds(folder.id, folders)])
 }

@@ -144,7 +144,7 @@ export async function getGithubBlob(accessToken: string, owner: string, repo: st
 export async function createGithubBlob(accessToken: string, owner: string, repo: string, content: string): Promise<GithubCreatedBlobResponse> {
   return fetchGithubApi<GithubCreatedBlobResponse>(accessToken, `/repos/${owner}/${repo}/git/blobs`, {
     method: 'POST',
-    body: JSON.stringify({ content: encodeBase64(content), encoding: 'base64' }),
+    body: JSON.stringify({ content: encodeGithubContentBase64(content), encoding: 'base64' }),
   })
 }
 
@@ -185,7 +185,7 @@ export async function updateGithubBranchRef(accessToken: string, owner: string, 
 export async function createGithubFile(accessToken: string, owner: string, repo: string, path: string, content: string, message: string): Promise<GithubCreatedContentResponse> {
   return fetchGithubApi<GithubCreatedContentResponse>(accessToken, `/repos/${owner}/${repo}/contents/${encodePath(path)}`, {
     method: 'PUT',
-    body: JSON.stringify({ message, content: encodeBase64(content) }),
+    body: JSON.stringify({ message, content: encodeGithubContentBase64(content) }),
   })
 }
 
@@ -286,7 +286,7 @@ async function readGithubError(response: Response): Promise<string> {
   }
 }
 
-function encodeBase64(content: string): string {
+export function encodeGithubContentBase64(content: string): string {
   const bytes = new TextEncoder().encode(content)
   let binary = ''
 

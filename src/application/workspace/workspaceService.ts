@@ -24,6 +24,7 @@ import {
   savePreferences,
 } from '@/infrastructure/db/localDatabase'
 import { createFileStorage, type FileStorage, type FileStorageMode } from '@/infrastructure/storage/fileStorage'
+import { collectFolderBranchIds } from '@/application/workspace/noteFilters'
 import { getWelcomeDrawing, getWelcomeMarkdown } from '@/application/workspace/welcomeContent'
 
 export type WorkspaceSnapshot = {
@@ -147,7 +148,8 @@ class WorkspaceService {
 
   async deleteFolder(folderId: FolderId, folders: Folder[], notes: Note[]): Promise<{ deletedFolderIds: FolderId[]; deletedNoteIds: NoteId[] }> {
     const folderIds = collectFolderBranchIds(folderId, folders)
-    const notesToDelete = notes.filter((note) => note.folderId !== null && folderIds.includes(note.folderId))
+    const folderIdSet = new Set(folderIds)
+    const notesToDelete = notes.filter((note) => note.folderId !== null && folderIdSet.has(note.folderId))
 
     await Promise.all([
       ...folderIds.map((id) => deleteFolderById(id)),
@@ -177,9 +179,3 @@ class WorkspaceService {
 }
 
 export const workspaceService = new WorkspaceService(createFileStorage())
-
-function collectFolderBranchIds(folderId: FolderId, folders: Folder[]): FolderId[] {
-  const childFolders = folders.filter((folder) => folder.parentId === folderId)
-
-  return [folderId, ...childFolders.flatMap((folder) => collectFolderBranchIds(folder.id, folders))]
-}
