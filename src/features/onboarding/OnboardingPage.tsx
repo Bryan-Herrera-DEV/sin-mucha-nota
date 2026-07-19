@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { accentColorOptions, fontOptions, themeOptions, type FontFamily, type Locale, type ThemeId } from '@/domain/preferences/preferences'
 import { translate } from '@/app/i18n/translations'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 import { Button } from '@/shared/ui/Button'
 import { cn } from '@/shared/lib/cn'
+import { listContainer, listItem, panelPresence, smoothSpring } from '@/shared/lib/motionPresets'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { Select } from '@/shared/ui/Select'
 
@@ -32,17 +34,17 @@ export function OnboardingPage() {
       <div className="theme-orb theme-orb-one" />
       <div className="theme-orb theme-orb-two" />
 
-      <section className="welcome-card relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.8rem] border border-white/12 shadow-[0_42px_120px_rgb(0_0_0_/_0.34)] lg:grid-cols-[0.95fr_1.05fr]">
+      <motion.section className="welcome-card relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.8rem] border border-white/12 shadow-[0_42px_120px_rgb(0_0_0_/_0.34)] lg:grid-cols-[0.95fr_1.05fr]" layout {...panelPresence}>
         <div className="relative isolate flex min-h-[34rem] flex-col justify-between overflow-hidden p-7 sm:p-10">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_10%,var(--accent-soft),transparent_18rem)]" />
-          <div className="animate-fade-up">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={smoothSpring}>
             <p className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-[var(--app-muted)]">{t('onboardingEyebrow')}</p>
             <h1 className="max-w-lg text-4xl font-black tracking-[-0.06em] text-white sm:text-6xl">{t('onboardingTitle')}</h1>
             <p className="mt-6 max-w-md text-base leading-8 text-[var(--app-muted)]">{t('onboardingBody')}</p>
-          </div>
+          </motion.div>
 
           <div className="relative mt-8 h-60">
-            <div className="welcome-note-preview animate-float-slow absolute left-0 top-2 w-[72%] rounded-[1.35rem] border border-white/12 p-5 shadow-[0_26px_80px_rgb(0_0_0_/_0.28)]">
+            <motion.div className="welcome-note-preview animate-float-slow absolute left-0 top-2 w-[72%] rounded-[1.35rem] border border-white/12 p-5 shadow-[0_26px_80px_rgb(0_0_0_/_0.28)]" initial={{ opacity: 0, x: -24, rotate: -2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
                 <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]" />
@@ -55,25 +57,28 @@ export function OnboardingPage() {
                 <span className="block h-2 w-4/5 rounded-full bg-white/10" />
                 <span className="block h-2 w-2/3 rounded-full bg-[color-mix(in_srgb,var(--accent)_70%,transparent)]" />
               </div>
-            </div>
-            <div className="welcome-drawing-preview animate-float-slow-reverse absolute bottom-0 right-0 w-[54%] rounded-[1.35rem] border border-white/12 p-4 shadow-[0_26px_80px_rgb(0_0_0_/_0.24)]">
+            </motion.div>
+            <motion.div className="welcome-drawing-preview animate-float-slow-reverse absolute bottom-0 right-0 w-[54%] rounded-[1.35rem] border border-white/12 p-4 shadow-[0_26px_80px_rgb(0_0_0_/_0.24)]" initial={{ opacity: 0, x: 24, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--app-muted)]">Excalidraw</p>
               <div className="mt-5 grid h-24 place-items-center rounded-2xl border border-dashed border-[var(--accent)]/60 bg-[var(--accent-soft)]">
                 <div className="h-12 w-28 rotate-[-4deg] rounded-xl border-2 border-[var(--accent)] bg-white/8" />
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        <form
+        <motion.form
           className="space-y-6 border-t border-white/10 bg-black/10 p-7 backdrop-blur sm:p-10 lg:border-l lg:border-t-0"
+          variants={listContainer}
+          initial="hidden"
+          animate="visible"
           onSubmit={(event) => {
             event.preventDefault()
             play('open')
             void completeOnboarding({ displayName, accentColor, themeId, fontFamily, locale })
           }}
         >
-          <div>
+          <motion.div variants={listItem}>
             <label className="text-sm font-black text-white" htmlFor="displayName">
               {t('nameLabel')}
             </label>
@@ -85,9 +90,9 @@ export function OnboardingPage() {
               onChange={(event) => setDisplayName(event.target.value)}
               required
             />
-          </div>
+          </motion.div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <motion.div className="grid gap-5 sm:grid-cols-2" variants={listItem}>
             <label className="text-sm font-black text-white">
               {t('languageLabel')}
               <Select
@@ -113,23 +118,25 @@ export function OnboardingPage() {
                 value={fontFamily}
               />
             </label>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div variants={listItem}>
             <div className="mb-3">
               <p className="text-sm font-black text-white">{t('themeLabel')}</p>
               <p className="mt-1 text-xs leading-5 text-[var(--app-muted)]">{t('themeBody')}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {themeOptions.map((theme) => (
-                <button
+                <motion.button
                   className={cn('theme-card text-left', themeId === theme.value && 'theme-card-selected')}
                   key={theme.value}
+                  layout
                   onClick={() => {
                     setThemeId(theme.value)
                     setAccentColor(theme.accentColor)
                     play('open')
                   }}
+                  whileTap={{ scale: 0.98 }}
                   type="button"
                 >
                   <span className="theme-card-preview" style={{ background: `linear-gradient(135deg, ${theme.preview[0]}, ${theme.preview[1]})` }} />
@@ -137,17 +144,18 @@ export function OnboardingPage() {
                     <span className="block text-sm font-black text-white">{locale === 'es' ? theme.labelEs : theme.labelEn}</span>
                     <span className="mt-1 block text-xs leading-5 text-[var(--app-muted)]">{locale === 'es' ? theme.descriptionEs : theme.descriptionEn}</span>
                   </span>
-                </button>
+                </motion.button>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div variants={listItem}>
             <p className="text-sm font-black text-white">{t('accentLabel')}</p>
             <div className="mt-3 grid grid-cols-5 gap-3">
               {accentColorOptions.map((option) => (
-                <button
+                <motion.button
                   key={option.value}
+                  layout
                   type="button"
                   className={cn(
                     'h-12 rounded-2xl border-2 transition hover:scale-[1.03]',
@@ -160,18 +168,23 @@ export function OnboardingPage() {
                     document.documentElement.style.setProperty('--accent', option.value)
                     play('tap')
                   }}
+                  whileTap={{ scale: 0.94 }}
                 />
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          {errorMessage ? <p className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">{errorMessage}</p> : null}
+          <AnimatePresence initial={false}>
+            {errorMessage ? <motion.p className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100" key="onboarding-error" layout {...panelPresence}>{errorMessage}</motion.p> : null}
+          </AnimatePresence>
 
-          <Button className="h-12 w-full text-sm font-black" disabled={bootStatus === 'loading'} type="submit" variant="primary">
+          <motion.div variants={listItem}>
+            <Button className="h-12 w-full text-sm font-black" disabled={bootStatus === 'loading'} type="submit" variant="primary">
             {bootStatus === 'loading' ? t('loading') : t('startButton')}
-          </Button>
-        </form>
-      </section>
+            </Button>
+          </motion.div>
+        </motion.form>
+      </motion.section>
     </main>
   )
 }

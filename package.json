@@ -17,6 +17,7 @@
     "cuelume": "^0.1.2",
     "idb": "^8.0.3",
     "lucide-react": "^1.24.0",
+    "motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",

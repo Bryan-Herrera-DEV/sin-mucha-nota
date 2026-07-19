@@ -1,10 +1,12 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { motion, type HTMLMotionProps } from 'motion/react'
 import { cn } from '@/shared/lib/cn'
+import { smoothSpring } from '@/shared/lib/motionPresets'
 
 type ButtonVariant = 'primary' | 'soft' | 'ghost' | 'danger'
 type ButtonSize = 'sm' | 'md' | 'icon'
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = HTMLMotionProps<'button'> & {
   variant?: ButtonVariant
   size?: ButtonSize
   children: ReactNode
@@ -25,16 +27,18 @@ const sizeClasses: Record<ButtonSize, string> = {
 
 export function Button({ className, variant = 'soft', size = 'md', children, ...props }: ButtonProps) {
   return (
-    <button
+    <motion.button
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition disabled:opacity-50',
         variantClasses[variant],
         sizeClasses[size],
         className,
       )}
+      transition={smoothSpring}
+      whileTap={props.disabled ? undefined : { scale: 0.97 }}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   )
 }
