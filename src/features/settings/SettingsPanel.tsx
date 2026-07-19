@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Cloud, PanelRightClose, Palette, Sparkles, Type, Volume2 } from 'lucide-react'
+import { Cloud, ExternalLink, GitFork, PanelRightClose, Palette, Sparkles, Star, Type, Volume2 } from 'lucide-react'
 import { accentColorOptions, fontOptions, themeOptions, type FontFamily, type Locale } from '@/domain/preferences/preferences'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
@@ -9,6 +9,9 @@ import { listContainer, listItem, panelPresence, smoothSpring } from '@/shared/l
 import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
+
+const PROJECT_REPOSITORY_NAME = 'Bryan-Herrera-DEV/sin-mucha-nota'
+const PROJECT_REPOSITORY_URL = `https://github.com/${PROJECT_REPOSITORY_NAME}`
 
 export function SettingsPanel() {
   const { t } = useI18n()
@@ -353,6 +356,42 @@ export function SettingsPanel() {
           <AnimatePresence initial={false}>
             {githubError ? <motion.p className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100" key="github-error" layout {...panelPresence}>{githubError}</motion.p> : null}
           </AnimatePresence>
+        </motion.section>
+
+        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+          <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
+            <GitFork size={17} />
+            {t('projectRepository')}
+          </div>
+          <p className="mb-3 text-xs leading-5 text-[var(--app-muted)]">{t('projectRepositoryBody')}</p>
+          <a
+            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-left transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+            href={PROJECT_REPOSITORY_URL}
+            onClick={() => play('open')}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-black">
+              <GitFork size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-black text-white">{PROJECT_REPOSITORY_NAME}</span>
+              <span className="mt-0.5 flex items-center gap-1 text-xs font-bold text-[var(--app-muted)]">
+                {t('openRepository')}
+                <ExternalLink size={12} />
+              </span>
+            </span>
+          </a>
+          <a
+            className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-4 text-sm font-black text-white shadow-[0_14px_30px_color-mix(in_srgb,var(--accent)_24%,transparent)] transition hover:bg-[var(--accent-strong)]"
+            href={PROJECT_REPOSITORY_URL}
+            onClick={() => play('save')}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <Star className="fill-current" size={16} />
+            {t('starRepository')}
+          </a>
         </motion.section>
 
         <motion.section className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm leading-6 text-[var(--app-muted)]" layout variants={listItem}>

@@ -79,6 +79,10 @@ export const translations = {
     storageIndexedDb: 'Fallback de archivos en IndexedDB',
     profile: 'Perfil local',
     interface: 'Interfaz',
+    projectRepository: 'Repo del proyecto',
+    projectRepositoryBody: 'Si sin mucha nota te sirve, abre el repo y dejanos una estrella en GitHub.',
+    openRepository: 'Abrir repo',
+    starRepository: 'Danos una estrella',
   },
   en: {
     appName: 'sin mucha nota',
@@ -158,6 +162,10 @@ export const translations = {
     storageIndexedDb: 'IndexedDB file fallback',
     profile: 'Local profile',
     interface: 'Interface',
+    projectRepository: 'Project repo',
+    projectRepositoryBody: 'If sin mucha nota helps you, open the repo and leave us a star on GitHub.',
+    openRepository: 'Open repo',
+    starRepository: 'Give us a star',
   },
 } as const
 
