@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:scan": "vite --mode scan",
     "build": "tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --mode pages",
     "benchmark": "node scripts/workspaceBenchmark.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
