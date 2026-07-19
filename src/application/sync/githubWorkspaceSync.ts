@@ -3,6 +3,7 @@ import { createEmptyDrawing, type Note } from '@/domain/notes/note'
 import type { UserPreferences } from '@/domain/preferences/preferences'
 import type { ISODate } from '@/domain/shared/valueObjects'
 import {
+  clearGithubInitialSyncStrategy,
   deleteFolderById,
   deleteNoteById,
   deleteStoredFile,
@@ -21,6 +22,7 @@ import {
   savePreferences,
   saveStoredFile,
   type GithubSyncConfig,
+  type GithubInitialSyncStrategy,
   type GithubSyncState,
 } from '@/infrastructure/db/localDatabase'
 import {
@@ -37,12 +39,13 @@ import {
   type GithubTreeItem,
   type GithubTreeUpdateEntry,
 } from '@/infrastructure/github/githubApi'
+import { AppError, reportAppError } from '@/shared/lib/appError'
 
 const WORKSPACE_FILE_NAME = 'workspace.json'
 const GITHUB_COMMIT_MESSAGE = 'sync: actualizar notas'
 
 export type GithubSyncResult = {
-  direction: 'pull' | 'push' | 'none'
+  direction: 'pull' | 'push' | 'merge' | 'none'
   workspaceChanged: boolean
   state: GithubSyncState
 }
@@ -90,6 +93,11 @@ export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
   try {
     const [localSnapshot, remoteSnapshot] = await Promise.all([createLocalWorkspaceSnapshot(config), readRemoteWorkspaceSnapshot(auth.accessToken, config)])
     const remoteDocument = remoteSnapshot.document
+
+    if (config.initialSyncStrategy) {
+      return performGithubInitialWorkspaceSync(auth.accessToken, config, localSnapshot, remoteSnapshot, config.initialSyncStrategy)
+    }
+
     const localUpdatedAt = toTime(localSnapshot.document.updatedAt)
     const remoteUpdatedAt = remoteDocument ? toTime(remoteDocument.updatedAt) : 0
 
@@ -115,10 +123,63 @@ export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
 
     return { direction: 'none', workspaceChanged: false, state }
   } catch (error) {
-    const state = await writeSyncState({ status: 'error', lastDirection: null, lastError: getErrorMessage(error) })
+    const appError = reportAppError(error, { scope: 'github.sync', operation: 'performGithubWorkspaceSync' })
+    const state = await writeSyncState({ status: 'error', lastDirection: null, lastError: appError.userMessage })
 
     return { direction: 'none', workspaceChanged: false, state }
   }
+}
+
+async function performGithubInitialWorkspaceSync(
+  accessToken: string,
+  config: GithubSyncConfig,
+  localSnapshot: LocalWorkspaceSnapshot,
+  remoteSnapshot: RemoteWorkspaceSnapshot,
+  strategy: GithubInitialSyncStrategy,
+): Promise<GithubSyncResult> {
+  if (strategy === 'pull-remote') {
+    if (!remoteSnapshot.document) {
+      throw new AppError('Este repo no tiene data remota de Notas Crema. Usa local o fusionar para inicializarlo.', {
+        scope: 'github.sync',
+        operation: 'initialPull',
+        code: 'github.remote_workspace_missing',
+        severity: 'warning',
+      })
+    }
+
+    await writeSyncState({ status: 'pulling', lastDirection: 'pull', lastError: null, remoteUpdatedAt: remoteSnapshot.document.updatedAt })
+    await applyRemoteWorkspaceSnapshot(remoteSnapshot.document, remoteSnapshot.files, config)
+    await clearGithubInitialSyncStrategy()
+
+    const state = await writeSyncState({ status: 'synced', lastDirection: 'pull', lastError: null, remoteUpdatedAt: remoteSnapshot.document.updatedAt })
+
+    return { direction: 'pull', workspaceChanged: true, state }
+  }
+
+  if (strategy === 'push-local') {
+    await writeSyncState({ status: 'pushing', lastDirection: 'push', lastError: null, remoteUpdatedAt: remoteSnapshot.document?.updatedAt ?? null })
+    await pushLocalWorkspaceSnapshot(accessToken, config, localSnapshot, remoteSnapshot)
+    await clearGithubInitialSyncStrategy()
+
+    const state = await writeSyncState({ status: 'synced', lastDirection: 'push', lastError: null, remoteUpdatedAt: localSnapshot.document.updatedAt })
+
+    return { direction: 'push', workspaceChanged: false, state }
+  }
+
+  const mergedSnapshot = mergeWorkspaceSnapshots(localSnapshot, remoteSnapshot, config)
+
+  await writeSyncState({ status: remoteSnapshot.document ? 'merging' : 'pushing', lastDirection: remoteSnapshot.document ? 'merge' : 'push', lastError: null, remoteUpdatedAt: remoteSnapshot.document?.updatedAt ?? null })
+
+  if (remoteSnapshot.document) {
+    await applyRemoteWorkspaceSnapshot(mergedSnapshot.document, createSyncFileMap(mergedSnapshot.files), config)
+  }
+
+  await pushLocalWorkspaceSnapshot(accessToken, config, mergedSnapshot, remoteSnapshot)
+  await clearGithubInitialSyncStrategy()
+
+  const state = await writeSyncState({ status: 'synced', lastDirection: remoteSnapshot.document ? 'merge' : 'push', lastError: null, remoteUpdatedAt: mergedSnapshot.document.updatedAt })
+
+  return { direction: remoteSnapshot.document ? 'merge' : 'push', workspaceChanged: Boolean(remoteSnapshot.document), state }
 }
 
 async function createLocalWorkspaceSnapshot(config: GithubSyncConfig): Promise<LocalWorkspaceSnapshot> {
@@ -273,6 +334,86 @@ async function applyRemoteWorkspaceSnapshot(document: GithubWorkspaceDocument, f
   await markLocalWorkspaceChanged(document.updatedAt)
 }
 
+function mergeWorkspaceSnapshots(localSnapshot: LocalWorkspaceSnapshot, remoteSnapshot: RemoteWorkspaceSnapshot, config: GithubSyncConfig): LocalWorkspaceSnapshot {
+  if (!remoteSnapshot.document) {
+    return localSnapshot
+  }
+
+  const localNoteById = new Map(localSnapshot.document.notes.map((note) => [note.id, note]))
+  const remoteNoteById = new Map(remoteSnapshot.document.notes.map((note) => [note.id, note]))
+  const notes = mergeEntities(localSnapshot.document.notes, remoteSnapshot.document.notes)
+  const document: GithubWorkspaceDocument = {
+    app: 'notas-online',
+    version: 1,
+    exportedAt: nowIso(),
+    updatedAt: nowIso(),
+    preferences: pickNewestOptional(localSnapshot.document.preferences, remoteSnapshot.document.preferences),
+    folders: mergeEntities(localSnapshot.document.folders, remoteSnapshot.document.folders),
+    notes,
+  }
+  const localFiles = createSyncFileMap(localSnapshot.files)
+  const files: SyncFile[] = [{ path: createWorkspacePath(config), content: JSON.stringify(document, null, 2) }]
+
+  for (const note of notes) {
+    const localNote = localNoteById.get(note.id)
+    const remoteNote = remoteNoteById.get(note.id)
+    const useRemoteFiles = Boolean(remoteNote && (!localNote || toTime(remoteNote.updatedAt) > toTime(localNote.updatedAt)))
+    const markdownPath = createNoteMarkdownPath(config, note)
+    const drawingPath = createNoteDrawingPath(config, note)
+    const markdown = pickFileContent(useRemoteFiles, remoteSnapshot.files.get(markdownPath), localFiles.get(markdownPath), '')
+    const drawing = pickFileContent(useRemoteFiles, remoteSnapshot.files.get(drawingPath), localFiles.get(drawingPath), JSON.stringify(createEmptyDrawing(), null, 2))
+
+    files.push({ path: markdownPath, content: markdown })
+    files.push({ path: drawingPath, content: drawing })
+  }
+
+  return { document, files }
+}
+
+function mergeEntities<T extends { id: string; updatedAt: ISODate }>(localEntities: T[], remoteEntities: T[]): T[] {
+  const localById = new Map(localEntities.map((entity) => [entity.id, entity]))
+  const remoteById = new Map(remoteEntities.map((entity) => [entity.id, entity]))
+  const ids = new Set([...localById.keys(), ...remoteById.keys()])
+
+  return [...ids].map((id) => pickNewestRequired(localById.get(id), remoteById.get(id)))
+}
+
+function pickNewestRequired<T extends { updatedAt: ISODate }>(localEntity: T | undefined, remoteEntity: T | undefined): T {
+  if (!localEntity && !remoteEntity) {
+    throw new AppError('No se pudo fusionar una entidad inexistente', { scope: 'github.sync', operation: 'mergeWorkspaceSnapshots' })
+  }
+
+  if (!localEntity) {
+    return remoteEntity as T
+  }
+
+  if (!remoteEntity) {
+    return localEntity
+  }
+
+  return toTime(remoteEntity.updatedAt) > toTime(localEntity.updatedAt) ? remoteEntity : localEntity
+}
+
+function pickNewestOptional<T extends { updatedAt: ISODate }>(localEntity: T | null, remoteEntity: T | null): T | null {
+  if (!localEntity) {
+    return remoteEntity
+  }
+
+  if (!remoteEntity) {
+    return localEntity
+  }
+
+  return toTime(remoteEntity.updatedAt) > toTime(localEntity.updatedAt) ? remoteEntity : localEntity
+}
+
+function pickFileContent(useRemoteFiles: boolean, remoteContent: string | undefined, localContent: string | undefined, fallbackContent: string): string {
+  return (useRemoteFiles ? (remoteContent ?? localContent) : (localContent ?? remoteContent)) ?? fallbackContent
+}
+
+function createSyncFileMap(files: SyncFile[]): Map<string, string> {
+  return new Map(files.map((file) => [file.path, file.content]))
+}
+
 async function writeSyncState(patch: Partial<Omit<GithubSyncState, 'id' | 'updatedAt'>>): Promise<GithubSyncState> {
   const current = await loadGithubSyncState()
 
@@ -321,8 +462,4 @@ function isEmptyRepositoryError(error: unknown): boolean {
 
 function nowIso(): ISODate {
   return new Date().toISOString() as ISODate
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'No se pudo sincronizar con GitHub'
 }

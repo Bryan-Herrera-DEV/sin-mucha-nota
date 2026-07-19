@@ -40,17 +40,20 @@ export type GithubSyncConfig = {
   branch: string
   basePath: string
   enabled: boolean
+  initialSyncStrategy: GithubInitialSyncStrategy | null
   selectedAt: ISODate
   updatedAt: ISODate
 }
 
-export type GithubSyncStatus = 'idle' | 'disabled' | 'syncing' | 'pulling' | 'pushing' | 'synced' | 'error'
+export type GithubInitialSyncStrategy = 'pull-remote' | 'push-local' | 'merge'
+
+export type GithubSyncStatus = 'idle' | 'disabled' | 'syncing' | 'pulling' | 'pushing' | 'merging' | 'synced' | 'error'
 
 export type GithubSyncState = {
   id: typeof GITHUB_SYNC_STATE_ID
   status: GithubSyncStatus
   lastSyncedAt: ISODate | null
-  lastDirection: 'pull' | 'push' | 'none' | null
+  lastDirection: 'pull' | 'push' | 'merge' | 'none' | null
   lastError: string | null
   remoteUpdatedAt: ISODate | null
   updatedAt: ISODate
@@ -250,8 +253,9 @@ export async function deleteGithubAuth(): Promise<void> {
 
 export async function loadGithubConfig(): Promise<GithubSyncConfig | null> {
   const database = await getLocalDatabase()
+  const config = (await database.get('githubConfig', GITHUB_CONFIG_ID)) ?? null
 
-  return (await database.get('githubConfig', GITHUB_CONFIG_ID)) ?? null
+  return config ? normalizeGithubConfig(config) : null
 }
 
 export async function saveGithubConfig(config: Omit<GithubSyncConfig, 'id' | 'selectedAt' | 'updatedAt'> & { selectedAt?: ISODate }): Promise<GithubSyncConfig> {
@@ -260,8 +264,28 @@ export async function saveGithubConfig(config: Omit<GithubSyncConfig, 'id' | 'se
   const nextConfig: GithubSyncConfig = {
     ...config,
     id: GITHUB_CONFIG_ID,
+    initialSyncStrategy: config.initialSyncStrategy ?? null,
     selectedAt: config.selectedAt ?? timestamp,
     updatedAt: timestamp,
+  }
+
+  await database.put('githubConfig', nextConfig)
+
+  return nextConfig
+}
+
+export async function clearGithubInitialSyncStrategy(): Promise<GithubSyncConfig | null> {
+  const database = await getLocalDatabase()
+  const currentConfig = await loadGithubConfig()
+
+  if (!currentConfig?.initialSyncStrategy) {
+    return currentConfig
+  }
+
+  const nextConfig: GithubSyncConfig = {
+    ...currentConfig,
+    initialSyncStrategy: null,
+    updatedAt: nowIso(),
   }
 
   await database.put('githubConfig', nextConfig)
@@ -321,4 +345,17 @@ function normalizeFolder(folder: Folder): Folder {
     ...folder,
     icon: folder.icon ?? 'folder',
   }
+}
+
+function normalizeGithubConfig(config: GithubSyncConfig): GithubSyncConfig {
+  const initialSyncStrategy = (config as { initialSyncStrategy?: unknown }).initialSyncStrategy
+
+  return {
+    ...config,
+    initialSyncStrategy: isGithubInitialSyncStrategy(initialSyncStrategy) ? initialSyncStrategy : null,
+  }
+}
+
+function isGithubInitialSyncStrategy(value: unknown): value is GithubInitialSyncStrategy {
+  return value === 'pull-remote' || value === 'push-local' || value === 'merge'
 }

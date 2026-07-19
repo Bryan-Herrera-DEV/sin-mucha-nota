@@ -18,6 +18,7 @@ export function SettingsPanel() {
   const githubConfig = useWorkspaceStore((state) => state.githubConfig)
   const githubSyncState = useWorkspaceStore((state) => state.githubSyncState)
   const githubRepos = useWorkspaceStore((state) => state.githubRepos)
+  const pendingGithubRepoFullName = useWorkspaceStore((state) => state.pendingGithubRepoFullName)
   const githubDeviceFlow = useWorkspaceStore((state) => state.githubDeviceFlow)
   const githubBusy = useWorkspaceStore((state) => state.githubBusy)
   const githubError = useWorkspaceStore((state) => state.githubError)
@@ -26,6 +27,8 @@ export function SettingsPanel() {
   const completeGithubOAuth = useWorkspaceStore((state) => state.completeGithubOAuth)
   const loadGithubRepositories = useWorkspaceStore((state) => state.loadGithubRepositories)
   const selectGithubRepository = useWorkspaceStore((state) => state.selectGithubRepository)
+  const confirmGithubRepositorySync = useWorkspaceStore((state) => state.confirmGithubRepositorySync)
+  const cancelGithubRepositorySelection = useWorkspaceStore((state) => state.cancelGithubRepositorySelection)
   const disconnectGithub = useWorkspaceStore((state) => state.disconnectGithub)
   const syncGithubNow = useWorkspaceStore((state) => state.syncGithubNow)
   const play = useSoundFeedback()
@@ -57,6 +60,9 @@ export function SettingsPanel() {
   if (!preferences) {
     return null
   }
+
+  const syncDecisionRepoName = pendingGithubRepoFullName ?? (githubConfig?.initialSyncStrategy ? githubConfig.repoFullName : null)
+  const selectedRepoValue = pendingGithubRepoFullName ?? githubConfig?.repoFullName ?? 'no-repos'
 
   return (
     <aside className="app-settings flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 p-3 text-[var(--app-text)] shadow-soft backdrop-blur lg:max-h-full">
@@ -236,10 +242,56 @@ export function SettingsPanel() {
                       void selectGithubRepository(value)
                     }
                   }}
-                  options={createRepoOptions(githubRepos, githubConfig, t('githubNoRepos'))}
-                  value={githubConfig?.repoFullName ?? githubRepos[0]?.full_name ?? 'no-repos'}
+                  options={createRepoOptions(githubRepos, githubConfig, t('githubNoRepos'), t('githubChooseRepo'))}
+                  value={selectedRepoValue}
                 />
               </div>
+
+              {syncDecisionRepoName ? (
+                <div className="rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] p-3">
+                  <p className="text-sm font-black text-white">{t('githubInitialSyncTitle')}</p>
+                  <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{t('githubInitialSyncBody')}</p>
+                  <p className="mt-2 truncate text-xs font-black text-white">{syncDecisionRepoName}</p>
+                  <div className="mt-3 grid gap-2">
+                    <Button
+                      disabled={githubBusy}
+                      onClick={() => {
+                        play('open')
+                        void confirmGithubRepositorySync('pull-remote')
+                      }}
+                      variant="soft"
+                    >
+                      {t('githubInitialSyncPull')}
+                    </Button>
+                    <Button
+                      disabled={githubBusy}
+                      onClick={() => {
+                        play('save')
+                        void confirmGithubRepositorySync('push-local')
+                      }}
+                      variant="danger"
+                    >
+                      {t('githubInitialSyncPush')}
+                    </Button>
+                    <Button
+                      disabled={githubBusy}
+                      onClick={() => {
+                        play('tap')
+                        void confirmGithubRepositorySync('merge')
+                      }}
+                      variant="primary"
+                    >
+                      {t('githubInitialSyncMerge')}
+                    </Button>
+                    {pendingGithubRepoFullName ? (
+                      <Button onClick={cancelGithubRepositorySelection} variant="ghost">
+                        {t('githubInitialSyncCancel')}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-[var(--app-muted)]">{t('githubInitialSyncHint')}</p>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -252,7 +304,7 @@ export function SettingsPanel() {
                   {t('githubLoadRepos')}
                 </Button>
                 <Button
-                  disabled={!githubConfig}
+                  disabled={!githubConfig || Boolean(pendingGithubRepoFullName)}
                   onClick={() => {
                     play('save')
                     syncGithubNow()
@@ -269,6 +321,7 @@ export function SettingsPanel() {
                   <p><span className="font-black text-white">Branch:</span> {githubConfig.branch}</p>
                   <p><span className="font-black text-white">{t('githubStatus')}:</span> {formatSyncStatus(githubSyncState?.status, preferences.locale)}</p>
                   <p><span className="font-black text-white">{t('githubLastSync')}:</span> {githubSyncState?.lastSyncedAt ? new Date(githubSyncState.lastSyncedAt).toLocaleString() : '-'}</p>
+                  {githubSyncState?.lastError ? <p className="text-red-100"><span className="font-black text-white">Error:</span> {githubSyncState.lastError}</p> : null}
                 </div>
               ) : null}
 
@@ -301,9 +354,13 @@ function createRepoOptions(
   repos: ReadonlyArray<{ full_name: string; private: boolean }>,
   config: { repoFullName: string } | null,
   emptyLabel: string,
+  chooseLabel: string,
 ): Array<{ value: string; label: string }> {
   if (repos.length > 0) {
-    return repos.map((repo) => ({ value: repo.full_name, label: `${repo.full_name}${repo.private ? ' private' : ''}` }))
+    const repoOptions = repos.map((repo) => ({ value: repo.full_name, label: `${repo.full_name}${repo.private ? ' private' : ''}` }))
+    const configOption = config && !repos.some((repo) => repo.full_name === config.repoFullName) ? [{ value: config.repoFullName, label: config.repoFullName }] : []
+
+    return [{ value: 'no-repos', label: chooseLabel }, ...configOption, ...repoOptions]
   }
 
   if (config) {
@@ -321,6 +378,7 @@ function formatSyncStatus(status: string | undefined, locale: Locale): string {
       syncing: 'Sincronizando',
       pulling: 'Descargando',
       pushing: 'Subiendo',
+      merging: 'Fusionando',
       synced: 'Sincronizado',
       error: 'Error',
     },
@@ -330,6 +388,7 @@ function formatSyncStatus(status: string | undefined, locale: Locale): string {
       syncing: 'Syncing',
       pulling: 'Pulling',
       pushing: 'Pushing',
+      merging: 'Merging',
       synced: 'Synced',
       error: 'Error',
     },

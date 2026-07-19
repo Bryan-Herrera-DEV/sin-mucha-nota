@@ -1,4 +1,5 @@
 import { performGithubWorkspaceSync } from '@/application/sync/githubWorkspaceSync'
+import { reportAppError } from '@/shared/lib/appError'
 
 const SYNC_INTERVAL_MS = 30_000
 
@@ -20,7 +21,6 @@ self.addEventListener('message', (event: MessageEvent<{ type: 'start' | 'sync-no
 })
 
 function startSyncLoop(): void {
-  console.log("Strat Sync Loop")
   if (intervalId !== null) {
     return
   }
@@ -32,7 +32,6 @@ function startSyncLoop(): void {
 }
 
 function stopSyncLoop(): void {
-  console.log("Stop Sync Loop")
   if (intervalId !== null) {
     self.clearInterval(intervalId)
     intervalId = null
@@ -40,7 +39,6 @@ function stopSyncLoop(): void {
 }
 
 async function syncNow(): Promise<void> {
-  console.log("Sync Now")
   if (syncing) {
     return
   }
@@ -52,7 +50,9 @@ async function syncNow(): Promise<void> {
 
     self.postMessage({ type: 'sync-complete', result })
   } catch (error) {
-    self.postMessage({ type: 'sync-error', message: error instanceof Error ? error.message : 'No se pudo sincronizar con GitHub' })
+    const appError = reportAppError(error, { scope: 'github.sync.worker', operation: 'syncNow' })
+
+    self.postMessage({ type: 'sync-error', message: appError.userMessage })
   } finally {
     syncing = false
   }

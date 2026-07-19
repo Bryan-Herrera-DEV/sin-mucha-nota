@@ -23,11 +23,13 @@ import {
   saveGithubAuth,
   saveGithubConfig,
   type GithubAuth,
+  type GithubInitialSyncStrategy,
   type GithubSyncConfig,
   type GithubSyncState,
 } from '@/infrastructure/db/localDatabase'
 import { getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
+import { getErrorMessage, reportAppError } from '@/shared/lib/appError'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
 export type BootStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -71,6 +73,7 @@ type WorkspaceState = {
   githubConfig: GithubSyncConfig | null
   githubSyncState: GithubSyncState | null
   githubRepos: GithubRepository[]
+  pendingGithubRepoFullName: string | null
   githubDeviceFlow: GithubDeviceFlow | null
   githubBusy: boolean
   githubError: string | null
@@ -100,8 +103,11 @@ type WorkspaceActions = {
   completeGithubOAuth(): Promise<void>
   loadGithubRepositories(): Promise<void>
   selectGithubRepository(repoFullName: string): Promise<void>
+  confirmGithubRepositorySync(strategy: GithubInitialSyncStrategy): Promise<void>
+  cancelGithubRepositorySelection(): void
   disconnectGithub(): Promise<void>
   syncGithubNow(): void
+  dismissError(): void
   updatePreferences(patch: Partial<Omit<UserPreferences, 'onboardedAt' | 'updatedAt' | 'accentColor'> & { accentColor: string }>): Promise<void>
 }
 
@@ -131,6 +137,7 @@ const initialWorkspaceState: WorkspaceState = {
   githubConfig: null,
   githubSyncState: null,
   githubRepos: [],
+  pendingGithubRepoFullName: null,
   githubDeviceFlow: null,
   githubBusy: false,
   githubError: null,
@@ -178,7 +185,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               githubSyncState,
             })
           } catch (error) {
-            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: getErrorMessage(error) })
+            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: handleStoreError(error, 'bootstrap') })
           }
         },
         async completeOnboarding(input) {
@@ -205,7 +212,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: activeNote?.updatedAt ?? null,
             })
           } catch (error) {
-            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: getErrorMessage(error) })
+            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: handleStoreError(error, 'completeOnboarding') })
           }
         },
         selectFolder(folderId) {
@@ -248,7 +255,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: note.updatedAt,
             })
           } catch (error) {
-            set({ contentStatus: 'error', errorMessage: getErrorMessage(error) })
+            set({ contentStatus: 'error', errorMessage: handleStoreError(error, 'selectNote') })
           }
         },
         async createFolder(name, parentId, icon) {
@@ -260,7 +267,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeFolderId: folder.id,
             }))
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'createFolder') })
           }
         },
         async createNote(title, folderId) {
@@ -283,7 +290,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: note.updatedAt,
             }))
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'createNote') })
           }
         },
         async renameActiveNote(title) {
@@ -301,7 +308,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: renamedNote.updatedAt,
             }))
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'renameActiveNote') })
           }
         },
         async moveActiveNote(folderId) {
@@ -319,7 +326,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: movedNote.updatedAt,
             }))
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'moveActiveNote') })
           }
         },
         async deleteNote(noteId) {
@@ -351,7 +358,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               })
             }
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'deleteNote') })
           }
         },
         async deleteFolder(folderId) {
@@ -378,7 +385,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               }
             }
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'deleteFolder') })
           }
         },
         updateMarkdownDraft(markdown) {
@@ -421,7 +428,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               lastSavedAt: savedNote.updatedAt,
             }))
           } catch (error) {
-            set({ contentStatus: 'error', errorMessage: getErrorMessage(error) })
+            set({ contentStatus: 'error', errorMessage: handleStoreError(error, 'saveActiveNote') })
           }
         },
         setEditorMode(mode) {
@@ -437,9 +444,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           set({ sidebarCollapsed: collapsed })
         },
         async loadGithubSettings() {
-          const [githubAuth, githubConfig, githubSyncState] = await Promise.all([loadGithubAuth(), loadGithubConfig(), loadGithubSyncState()])
+          try {
+            const [githubAuth, githubConfig, githubSyncState] = await Promise.all([loadGithubAuth(), loadGithubConfig(), loadGithubSyncState()])
 
-          set({ githubAuth, githubConfig, githubSyncState })
+            set({ githubAuth, githubConfig, githubSyncState })
+          } catch (error) {
+            set({ githubError: handleStoreError(error, 'loadGithubSettings') })
+          }
         },
         async startGithubOAuth() {
           const clientId = getGithubClientId()
@@ -466,7 +477,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               githubBusy: false,
             })
           } catch (error) {
-            set({ githubBusy: false, githubError: getErrorMessage(error) })
+            set({ githubBusy: false, githubError: handleStoreError(error, 'startGithubOAuth') })
           }
         },
         async completeGithubOAuth() {
@@ -505,7 +516,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               return
             }
 
-            set({ githubBusy: false, githubError: message })
+            set({ githubBusy: false, githubError: handleStoreError(error, 'completeGithubOAuth') })
           }
         },
         async loadGithubRepositories() {
@@ -522,7 +533,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
             set({ githubRepos, githubBusy: false })
           } catch (error) {
-            set({ githubBusy: false, githubError: getErrorMessage(error) })
+            set({ githubBusy: false, githubError: handleStoreError(error, 'loadGithubRepositories') })
           }
         },
         async selectGithubRepository(repoFullName) {
@@ -532,25 +543,58 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             return
           }
 
-          const githubConfig = await saveGithubConfig({
-            owner: repo.owner.login,
-            repo: repo.name,
-            repoFullName: repo.full_name,
-            branch: repo.default_branch,
-            basePath: '.notas-online',
-            enabled: true,
-          })
+          if (get().githubConfig?.repoFullName === repoFullName && !get().githubConfig?.initialSyncStrategy) {
+            return
+          }
 
-          set({ githubConfig, githubError: null })
-          dispatchGithubSyncEvent('github-sync-now')
+          set({ pendingGithubRepoFullName: repoFullName, githubError: null })
+        },
+        async confirmGithubRepositorySync(strategy) {
+          const state = get()
+          const repoFullName = state.pendingGithubRepoFullName ?? state.githubConfig?.repoFullName
+          const repo = state.githubRepos.find((candidate) => candidate.full_name === repoFullName)
+          const currentConfig = state.githubConfig?.repoFullName === repoFullName ? state.githubConfig : null
+          const owner = repo?.owner.login ?? currentConfig?.owner
+          const repoName = repo?.name ?? currentConfig?.repo
+          const branch = repo?.default_branch ?? currentConfig?.branch
+
+          if (!repoFullName || !owner || !repoName || !branch) {
+            return
+          }
+
+          set({ githubBusy: true, githubError: null })
+
+          try {
+            const githubConfig = await saveGithubConfig({
+              owner,
+              repo: repoName,
+              repoFullName,
+              branch,
+              basePath: currentConfig?.basePath ?? '.notas-online',
+              enabled: true,
+              initialSyncStrategy: strategy,
+              selectedAt: currentConfig?.selectedAt,
+            })
+
+            set({ githubConfig, pendingGithubRepoFullName: null, githubBusy: false, githubError: null })
+            dispatchGithubSyncEvent('github-sync-now')
+          } catch (error) {
+            set({ githubBusy: false, githubError: handleStoreError(error, 'confirmGithubRepositorySync') })
+          }
+        },
+        cancelGithubRepositorySelection() {
+          set({ pendingGithubRepoFullName: null })
         },
         async disconnectGithub() {
           await Promise.all([deleteGithubAuth(), deleteGithubConfig(), deleteGithubSyncState()])
-          set({ githubAuth: null, githubConfig: null, githubSyncState: null, githubRepos: [], githubDeviceFlow: null, githubError: null })
+          set({ githubAuth: null, githubConfig: null, githubSyncState: null, githubRepos: [], pendingGithubRepoFullName: null, githubDeviceFlow: null, githubError: null })
           dispatchGithubSyncEvent('github-sync-config-changed')
         },
         syncGithubNow() {
           dispatchGithubSyncEvent('github-sync-now')
+        },
+        dismissError() {
+          set({ errorMessage: null })
         },
         async updatePreferences(patch) {
           const preferences = get().preferences
@@ -565,7 +609,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             set({ preferences: updatedPreferences })
             await workspaceService.savePreferences(updatedPreferences)
           } catch (error) {
-            set({ errorMessage: getErrorMessage(error) })
+            set({ errorMessage: handleStoreError(error, 'updatePreferences') })
           }
         },
       }),
@@ -645,6 +689,6 @@ function dispatchGithubSyncEvent(type: 'github-sync-now' | 'github-sync-config-c
   }
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Ocurrio un error inesperado'
+function handleStoreError(error: unknown, operation: string, fallbackMessage?: string): string {
+  return reportAppError(error, { scope: 'workspace.store', operation, fallbackMessage }).userMessage
 }
