@@ -1,6 +1,6 @@
-# Notas Crema
+# sin mucha nota
 
-App local para tomar notas calidas con Markdown, Excalidraw, carpetas anidadas, sonidos suaves y configuracion inicial.
+App local para tomar notas con Markdown, Excalidraw, carpetas anidadas, sonidos suaves y configuracion inicial.
 
 ## Comandos
 

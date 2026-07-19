@@ -51,7 +51,7 @@ export type GithubSyncResult = {
 }
 
 type GithubWorkspaceDocument = {
-  app: 'notas-online'
+  app: 'sin-mucha-nota'
   version: 1
   exportedAt: ISODate
   updatedAt: ISODate
@@ -139,7 +139,7 @@ async function performGithubInitialWorkspaceSync(
 ): Promise<GithubSyncResult> {
   if (strategy === 'pull-remote') {
     if (!remoteSnapshot.document) {
-      throw new AppError('Este repo no tiene data remota de Notas Crema. Usa local o fusionar para inicializarlo.', {
+      throw new AppError('Este repo no tiene data remota de sin mucha nota. Usa local o fusionar para inicializarlo.', {
         scope: 'github.sync',
         operation: 'initialPull',
         code: 'github.remote_workspace_missing',
@@ -186,7 +186,7 @@ async function createLocalWorkspaceSnapshot(config: GithubSyncConfig): Promise<L
   const [preferences, folders, notes, localMeta] = await Promise.all([loadPreferences(), listFolders(), listNotes(), loadLocalWorkspaceMeta()])
   const updatedAt = maxIso([preferences?.updatedAt, localMeta?.updatedAt, ...folders.map((folder) => folder.updatedAt), ...notes.map((note) => note.updatedAt)])
   const document: GithubWorkspaceDocument = {
-    app: 'notas-online',
+    app: 'sin-mucha-nota',
     version: 1,
     exportedAt: nowIso(),
     updatedAt,
@@ -343,7 +343,7 @@ function mergeWorkspaceSnapshots(localSnapshot: LocalWorkspaceSnapshot, remoteSn
   const remoteNoteById = new Map(remoteSnapshot.document.notes.map((note) => [note.id, note]))
   const notes = mergeEntities(localSnapshot.document.notes, remoteSnapshot.document.notes)
   const document: GithubWorkspaceDocument = {
-    app: 'notas-online',
+    app: 'sin-mucha-nota',
     version: 1,
     exportedAt: nowIso(),
     updatedAt: nowIso(),
@@ -443,7 +443,7 @@ function createNoteDrawingPath(config: GithubSyncConfig, note: Note): string {
 }
 
 function normalizeBasePath(basePath: string): string {
-  return basePath.trim().replace(/^\/+|\/+$/g, '') || '.notas-online'
+  return basePath.trim().replace(/^\/+|\/+$/g, '') || '.sin-mucha-nota'
 }
 
 function maxIso(values: Array<ISODate | null | undefined>): ISODate {

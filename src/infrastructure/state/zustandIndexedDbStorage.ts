@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from 'idb'
 import type { PersistStorage, StateStorage, StorageValue } from 'zustand/middleware'
 
-const STATE_DATABASE_NAME = 'notas-crema-zustand'
+const STATE_DATABASE_NAME = 'sin-mucha-nota-zustand'
 const STATE_DATABASE_VERSION = 1
 
 type StateRecord = {

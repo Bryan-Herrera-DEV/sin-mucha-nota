@@ -570,7 +570,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               repo: repoName,
               repoFullName,
               branch,
-              basePath: currentConfig?.basePath ?? '.notas-online',
+              basePath: currentConfig?.basePath ?? '.sin-mucha-nota',
               enabled: true,
               initialSyncStrategy: strategy,
               selectedAt: currentConfig?.selectedAt,
@@ -614,7 +614,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         },
       }),
       {
-        name: 'notas-crema-ui-v1',
+        name: 'sin-mucha-nota-ui-v1',
         storage: persistedWorkspaceStorage,
         version: 2,
         migrate: (persistedState) => sanitizePersistedWorkspaceState(persistedState),

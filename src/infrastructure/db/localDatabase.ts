@@ -4,7 +4,8 @@ import type { Note } from '@/domain/notes/note'
 import type { ThemeId, UserPreferences } from '@/domain/preferences/preferences'
 import { nowIso, type ISODate } from '@/domain/shared/valueObjects'
 
-const DATABASE_NAME = 'notas-crema'
+const DATABASE_NAME = 'sin-mucha-nota'
+const LEGACY_DATABASE_NAME = 'notas-crema'
 const DATABASE_VERSION = 3
 const ACTIVE_PREFERENCES_ID = 'active'
 const GITHUB_AUTH_ID = 'auth'
@@ -64,7 +65,7 @@ export type LocalWorkspaceMeta = {
   updatedAt: ISODate
 }
 
-interface NotasCremaDatabase extends DBSchema {
+interface SinMuchaNotaDatabase extends DBSchema {
   folders: {
     key: string
     value: Folder
@@ -99,10 +100,20 @@ interface NotasCremaDatabase extends DBSchema {
   }
 }
 
-let databasePromise: Promise<IDBPDatabase<NotasCremaDatabase>> | null = null
+let databasePromise: Promise<IDBPDatabase<SinMuchaNotaDatabase>> | null = null
 
-export function getLocalDatabase(): Promise<IDBPDatabase<NotasCremaDatabase>> {
-  databasePromise ??= openDB<NotasCremaDatabase>(DATABASE_NAME, DATABASE_VERSION, {
+export function getLocalDatabase(): Promise<IDBPDatabase<SinMuchaNotaDatabase>> {
+  databasePromise ??= openWorkspaceDatabase(DATABASE_NAME).then(async (database) => {
+    await migrateLegacyDatabase(database)
+
+    return database
+  })
+
+  return databasePromise
+}
+
+function openWorkspaceDatabase(name: string): Promise<IDBPDatabase<SinMuchaNotaDatabase>> {
+  return openDB<SinMuchaNotaDatabase>(name, DATABASE_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains('folders')) {
         database.createObjectStore('folders', { keyPath: 'id' })
@@ -137,8 +148,75 @@ export function getLocalDatabase(): Promise<IDBPDatabase<NotasCremaDatabase>> {
       }
     },
   })
+}
 
-  return databasePromise
+async function migrateLegacyDatabase(database: IDBPDatabase<SinMuchaNotaDatabase>): Promise<void> {
+  if (await hasWorkspaceData(database)) {
+    return
+  }
+
+  if (!(await databaseExists(LEGACY_DATABASE_NAME))) {
+    return
+  }
+
+  const legacyDatabase = await openWorkspaceDatabase(LEGACY_DATABASE_NAME)
+
+  try {
+    if (!(await hasWorkspaceData(legacyDatabase))) {
+      return
+    }
+
+    const [folders, notes, preferences, files, githubAuth, githubConfig, githubSyncState, localWorkspaceMeta] = await Promise.all([
+      legacyDatabase.getAll('folders'),
+      legacyDatabase.getAll('notes'),
+      legacyDatabase.getAll('preferences'),
+      legacyDatabase.getAll('files'),
+      legacyDatabase.getAll('githubAuth'),
+      legacyDatabase.getAll('githubConfig'),
+      legacyDatabase.getAll('githubSyncState'),
+      legacyDatabase.getAll('localWorkspaceMeta'),
+    ])
+
+    await Promise.all([
+      ...folders.map((folder) => database.put('folders', folder)),
+      ...notes.map((note) => database.put('notes', note)),
+      ...preferences.map((preference) => database.put('preferences', preference)),
+      ...files.map((file) => database.put('files', file)),
+      ...githubAuth.map((auth) => database.put('githubAuth', auth)),
+      ...githubConfig.map((config) => database.put('githubConfig', config)),
+      ...githubSyncState.map((state) => database.put('githubSyncState', state)),
+      ...localWorkspaceMeta.map((meta) => database.put('localWorkspaceMeta', meta)),
+    ])
+  } finally {
+    legacyDatabase.close()
+  }
+}
+
+async function hasWorkspaceData(database: IDBPDatabase<SinMuchaNotaDatabase>): Promise<boolean> {
+  const [folderCount, noteCount, preferencesCount, fileCount] = await Promise.all([
+    database.count('folders'),
+    database.count('notes'),
+    database.count('preferences'),
+    database.count('files'),
+  ])
+
+  return folderCount + noteCount + preferencesCount + fileCount > 0
+}
+
+async function databaseExists(name: string): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') {
+    return false
+  }
+
+  const listDatabases = (indexedDB as IDBFactory & { databases?: () => Promise<Array<{ name?: string }>> }).databases
+
+  if (!listDatabases) {
+    return true
+  }
+
+  const databases = await listDatabases.call(indexedDB)
+
+  return databases.some((database) => database.name === name)
 }
 
 export async function listFolders(): Promise<Folder[]> {

@@ -38,7 +38,7 @@ function App() {
       <main className="app-shell-bg grid min-h-svh place-items-center px-6 text-center text-[var(--app-text)]">
         <div className="theme-orb theme-orb-one" />
         <div className="animate-fade-up rounded-[2rem] border border-white/12 bg-[var(--app-panel)] p-8 shadow-[0_32px_90px_rgb(0_0_0_/_0.3)]">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--app-muted)]">Notas Crema</p>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--app-muted)]">sin mucha nota</p>
           <h1 className="mt-3 text-3xl font-black tracking-[-0.05em] text-white">{translate('es', 'loading')}</h1>
         </div>
       </main>

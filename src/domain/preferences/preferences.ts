@@ -69,7 +69,7 @@ export const themeOptions = [
     value: 'sand',
     labelEs: 'Arena',
     labelEn: 'Sand',
-    descriptionEs: 'Neutro oscuro con brillo crema.',
+    descriptionEs: 'Neutro oscuro con brillo suave.',
     descriptionEn: 'Dark neutral with creamy glow.',
     accentColor: '#d4a373' as HexColor,
     preview: ['#3f3427', '#15110c'],

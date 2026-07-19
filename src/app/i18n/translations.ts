@@ -2,7 +2,7 @@ import type { Locale } from '@/domain/preferences/preferences'
 
 export const translations = {
   es: {
-    appName: 'Notas Crema',
+    appName: 'sin mucha nota',
     appTagline: 'Notas locales con Markdown y Excalidraw en un espacio calido.',
     loading: 'Preparando tu espacio...',
     retry: 'Reintentar',
@@ -50,7 +50,7 @@ export const translations = {
     sounds: 'Sonidos suaves',
     soundPreview: 'Probar sonido',
     githubSync: 'Sync con GitHub',
-    githubConnectBody: 'Autoriza GitHub, elige un repo y Notas sincronizara cada 30 segundos en segundo plano.',
+    githubConnectBody: 'Autoriza GitHub, elige un repo y sin mucha nota sincronizara cada 30 segundos en segundo plano.',
     githubConnect: 'Conectar GitHub',
     githubOpenDevice: 'Abrir GitHub',
     githubUserCode: 'Codigo',
@@ -81,7 +81,7 @@ export const translations = {
     interface: 'Interfaz',
   },
   en: {
-    appName: 'Cream Notes',
+    appName: 'sin mucha nota',
     appTagline: 'Local notes with Markdown and Excalidraw in a warm workspace.',
     loading: 'Preparing your space...',
     retry: 'Retry',
