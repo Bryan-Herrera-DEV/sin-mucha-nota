@@ -224,6 +224,84 @@ textarea {
   background: var(--app-panel-active);
 }
 
+.editor-workspace-header {
+  max-height: 12rem;
+  overflow: hidden;
+  transition:
+    max-height 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms ease,
+    padding 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 320ms ease,
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.editor-workspace-expanded .editor-workspace-header {
+  max-height: 0;
+  border-color: transparent;
+  opacity: 0;
+  padding-block: 0 !important;
+  pointer-events: none;
+  transform: translateY(-0.75rem);
+}
+
+.editor-layout {
+  transition:
+    gap 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.editor-layout-expanded {
+  gap: 0 !important;
+}
+
+.editor-note-list {
+  flex: 0 0 min(34svh, 22rem);
+  max-height: min(34svh, 22rem);
+  transition:
+    flex-basis 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    padding 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 260ms ease;
+}
+
+.editor-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  transform-origin: center;
+  transition:
+    border-color 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.editor-layout-expanded .editor-note-list {
+  flex-basis: 0;
+  max-height: 0;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-right: 0 !important;
+  pointer-events: none;
+  transform: translateX(-0.75rem) scale(0.985);
+  visibility: hidden;
+}
+
+.editor-layout-expanded .editor-panel {
+  border-color: color-mix(in srgb, var(--accent) 34%, rgb(255 255 255 / 0.12));
+  box-shadow: 0 30px 100px rgb(0 0 0 / 0.3), 0 0 0 1px var(--accent-soft);
+}
+
+@media (min-width: 1024px) {
+  .editor-note-list {
+    flex-basis: 22rem;
+    max-width: 22rem;
+    max-height: none;
+  }
+}
+
 .theme-orb {
   position: fixed;
   z-index: -1;

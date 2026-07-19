@@ -14,6 +14,7 @@
     "@excalidraw/excalidraw": "^0.18.1",
     "@radix-ui/react-select": "^2.3.3",
     "clsx": "^2.1.1",
+    "cuelume": "^0.1.2",
     "idb": "^8.0.3",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",

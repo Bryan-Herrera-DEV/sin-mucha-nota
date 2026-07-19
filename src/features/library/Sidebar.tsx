@@ -22,7 +22,6 @@ import type { Note } from '@/domain/notes/note'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
-import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 
 const folderIconMap: Record<FolderIcon, ComponentType<{ size?: number; className?: string }>> = {
@@ -212,14 +211,30 @@ export function Sidebar() {
           setFolderIcon('folder')
         }}
       >
-        <div className="mb-2 grid grid-cols-[4.2rem_minmax(0,1fr)] gap-2">
-          <Select
-            ariaLabel="Folder icon"
-            className="h-9 rounded-full px-2 text-xs"
-            onValueChange={(value) => setFolderIcon(value as FolderIcon)}
-            options={folderIconOptions.map((option) => ({ value: option.value, label: option.label }))}
-            value={folderIcon}
-          />
+        <div className="mb-2 space-y-2">
+          <div className="grid grid-cols-8 gap-1" role="radiogroup" aria-label="Folder icon">
+            {folderIconOptions.map((option) => {
+              const Icon = folderIconMap[option.value]
+
+              return (
+                <button
+                  aria-label={option.label}
+                  aria-checked={folderIcon === option.value}
+                  className={cn(
+                    'grid h-8 place-items-center rounded-full border text-[var(--app-muted)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-white',
+                    folderIcon === option.value ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-white' : 'border-white/10 bg-[var(--app-panel)]',
+                  )}
+                  key={option.value}
+                  onClick={() => setFolderIcon(option.value)}
+                  role="radio"
+                  title={option.label}
+                  type="button"
+                >
+                  <Icon size={15} />
+                </button>
+              )
+            })}
+          </div>
           <input
             className="h-9 rounded-full border border-white/10 bg-[var(--app-panel)] px-3 text-sm text-white outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)]"
             placeholder={activeFolderId ? t('newSubfolder') : t('folderNamePlaceholder')}

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { CalendarDays, FileText, Plus, Save, Trash2 } from 'lucide-react'
+import { CalendarDays, FileText, Maximize2, Minimize2, Plus, Save, Trash2 } from 'lucide-react'
 import type { Folder as FolderEntity, FolderId } from '@/domain/folders/folder'
 import type { Note } from '@/domain/notes/note'
 import { getVisibleNotes } from '@/application/workspace/noteFilters'
@@ -43,6 +43,7 @@ export function EditorWorkspace() {
   const setSearch = useWorkspaceStore((state) => state.setSearch)
   const [titleDraft, setTitleDraft] = useState(activeNote?.title ?? '')
   const [newNoteTitle, setNewNoteTitle] = useState('')
+  const [editorExpanded, setEditorExpanded] = useState(false)
   const deferredMarkdown = useDeferredValue(markdownDraft)
   const play = useSoundFeedback()
   const visibleNotes = getVisibleNotes(notes, folders, activeFolderId, search)
@@ -68,8 +69,8 @@ export function EditorWorkspace() {
   }, [contentStatus, isDirty, saveActiveNote])
 
   return (
-    <main className="notes-dark app-workspace flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex flex-col gap-3 border-b border-white/10 px-4 py-4 lg:px-7">
+    <main className={cn('notes-dark app-workspace flex min-h-0 flex-1 flex-col overflow-hidden', editorExpanded && 'editor-workspace-expanded')}>
+      <header className="editor-workspace-header flex flex-col gap-3 border-b border-white/10 px-4 py-4 lg:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="flex items-center gap-2 text-xs font-bold text-[var(--app-muted)]">
@@ -112,8 +113,8 @@ export function EditorWorkspace() {
         </form>
       </header>
 
-      <section className="grid min-h-0 flex-1 gap-4 overflow-hidden p-4 lg:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] lg:p-5 lg:px-7">
-        <div className="min-h-0 overflow-auto pr-1">
+      <section className={cn('editor-layout flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row lg:p-5 lg:px-7', editorExpanded && 'editor-layout-expanded')}>
+        <div className="editor-note-list min-h-0 min-w-0 overflow-auto pr-1">
           <div className="space-y-3">
             {visibleNotes.length > 0 ? visibleNotes.map((note) => (
               <NoteCard
@@ -154,7 +155,7 @@ export function EditorWorkspace() {
           </div>
         </div>
 
-        <article className="min-h-0 overflow-hidden rounded-[1.35rem] border border-white/12 bg-[var(--app-panel)] shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
+        <article className="editor-panel min-h-0 overflow-hidden rounded-[1.35rem] border border-white/12 bg-[var(--app-panel)] shadow-[0_24px_80px_rgb(0_0_0_/_0.22)]">
           {activeNote ? (
             <div className="flex h-full min-h-0 flex-col">
               <header className="border-b border-white/10 p-4">
@@ -181,6 +182,21 @@ export function EditorWorkspace() {
                       ]}
                       value={activeNote.folderId ?? ROOT_FOLDER_VALUE}
                     />
+                    <button
+                      aria-label={editorExpanded ? t('collapseEditor') : t('expandEditor')}
+                      className={cn(
+                        'grid h-9 w-9 place-items-center rounded-full border text-[var(--app-muted)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-white',
+                        editorExpanded ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-white' : 'border-white/10 bg-white/6',
+                      )}
+                      onClick={() => {
+                        play('page')
+                        setEditorExpanded((expanded) => !expanded)
+                      }}
+                      title={editorExpanded ? t('collapseEditor') : t('expandEditor')}
+                      type="button"
+                    >
+                      {editorExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                    </button>
                     <button
                       className="flex h-9 items-center gap-2 rounded-full bg-[var(--accent)] px-3 text-sm font-black text-white transition hover:bg-[var(--accent-strong)] disabled:opacity-50"
                       disabled={!isDirty || contentStatus === 'saving'}
