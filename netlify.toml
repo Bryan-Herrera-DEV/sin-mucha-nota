@@ -1,0 +1,24 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+  VITE_GITHUB_OAUTH_PROXY_URL = "/github-oauth"
+
+[[redirects]]
+  from = "/github-oauth/device/code"
+  to = "https://github.com/login/device/code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/github-oauth/access_token"
+  to = "https://github.com/login/oauth/access_token"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

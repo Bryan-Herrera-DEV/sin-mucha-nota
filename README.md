@@ -14,6 +14,18 @@ npm run benchmark
 `npm run benchmark` genera un workspace sintetico con miles de notas y archivos pesados para medir filtros, conteos de carpetas, snapshot de sync y base64 de GitHub.
 Ejemplo: `npm run benchmark -- --notes=12000 --folders=2400 --markdownKb=12 --drawingKb=6 --compare-legacy`.
 
+## Publicar en Netlify
+
+Este repo incluye `netlify.toml` para publicar la app y activar el proxy OAuth de GitHub en Netlify.
+
+1. En Netlify crea un sitio nuevo desde este repositorio.
+2. Deja que Netlify use la configuracion del repo: `command = npm run build` y `publish = dist`.
+3. En `Site configuration` > `Environment variables`, agrega `VITE_GITHUB_CLIENT_ID` con el Client ID de tu GitHub OAuth App.
+4. No agregues `VITE_GITHUB_OAUTH_PROXY_URL` en Netlify, salvo que quieras sobreescribirlo; el valor del repo ya es `/github-oauth`.
+5. Publica el sitio.
+
+En Netlify, `/github-oauth/device/code` y `/github-oauth/access_token` se reescriben hacia GitHub con redirects proxy, asi el navegador no llama directamente a `github.com` ni a GitHub Pages.
+
 ## Publicar en GitHub Pages
 
 Este repo usa GitHub Actions para publicar el build de Vite en GitHub Pages.
@@ -23,9 +35,8 @@ Este repo usa GitHub Actions para publicar el build de Vite en GitHub Pages.
 3. Haz push a `main`.
 4. La app quedara publicada en `https://bryan-herrera-dev.github.io/sin-mucha-nota/`.
 
-Si quieres que el Sync con GitHub funcione en Pages, agrega `VITE_GITHUB_CLIENT_ID` en
-`Settings` > `Secrets and variables` > `Actions` > `Secrets` y
-`VITE_GITHUB_OAUTH_PROXY_URL` en la pestana `Variables`:
+Si quieres que el Sync con GitHub funcione en Pages, agrega `VITE_GITHUB_CLIENT_ID` y
+`VITE_GITHUB_OAUTH_PROXY_URL` en `Settings` > `Secrets and variables` > `Actions` > `Secrets`:
 
 ```env
 VITE_GITHUB_CLIENT_ID=tu_client_id_de_oauth_app
