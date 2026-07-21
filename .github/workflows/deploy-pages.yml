@@ -33,7 +33,7 @@ jobs:
       - name: Build
         run: npm run build:pages
         env:
-          VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
           VITE_GITHUB_OAUTH_PROXY_URL: ${{ vars.VITE_GITHUB_OAUTH_PROXY_URL }}
 
       - name: Upload artifact

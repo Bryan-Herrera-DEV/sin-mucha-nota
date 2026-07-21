@@ -23,12 +23,20 @@ Este repo usa GitHub Actions para publicar el build de Vite en GitHub Pages.
 3. Haz push a `main`.
 4. La app quedara publicada en `https://bryan-herrera-dev.github.io/sin-mucha-nota/`.
 
-Si quieres que el Sync con GitHub funcione en Pages, agrega estas variables en `Settings` > `Secrets and variables` > `Actions` > `Variables`:
+Si quieres que el Sync con GitHub funcione en Pages, agrega `VITE_GITHUB_CLIENT_ID` en
+`Settings` > `Secrets and variables` > `Actions` > `Secrets` y
+`VITE_GITHUB_OAUTH_PROXY_URL` en la pestana `Variables`:
 
 ```env
 VITE_GITHUB_CLIENT_ID=tu_client_id_de_oauth_app
 VITE_GITHUB_OAUTH_PROXY_URL=https://tu-dominio.com/github-oauth
 ```
+
+El workflow accede al Client ID con el contexto `secrets`; los valores guardados en
+`Secrets` no estan disponibles mediante el contexto `vars`. Ten en cuenta que Vite
+incluye cualquier variable con prefijo `VITE_` en el bundle del navegador, por lo que
+el Client ID no debe considerarse confidencial. No configures el Client Secret de la
+OAuth App como una variable `VITE_`.
 
 Para probar el build de Pages localmente ejecuta:
 
