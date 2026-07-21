@@ -9,6 +9,7 @@ import { listContainer, listItem, panelPresence, smoothSpring } from '@/shared/l
 import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
+import { canUseGithubOAuth } from '@/infrastructure/github/githubApi'
 
 const PROJECT_REPOSITORY_NAME = 'Bryan-Herrera-DEV/sin-mucha-nota'
 const PROJECT_REPOSITORY_URL = `https://github.com/${PROJECT_REPOSITORY_NAME}`
@@ -37,6 +38,7 @@ export function SettingsPanel() {
   const disconnectGithub = useWorkspaceStore((state) => state.disconnectGithub)
   const syncGithubNow = useWorkspaceStore((state) => state.syncGithubNow)
   const play = useSoundFeedback()
+  const githubConnectAvailable = canUseGithubOAuth()
 
   useEffect(() => {
     void loadGithubSettings()
@@ -205,13 +207,13 @@ export function SettingsPanel() {
             <Cloud size={17} />
             {t('githubSync')}
           </div>
-          <p className="mb-3 text-xs leading-5 text-[var(--app-muted)]">{t('githubConnectBody')}</p>
+          <p className="mb-3 text-xs leading-5 text-[var(--app-muted)]">{githubAuth || githubConnectAvailable ? t('githubConnectBody') : t('githubOAuthUnavailable')}</p>
 
           {!githubAuth ? (
             <div className="space-y-3">
               <Button
                 className="w-full"
-                disabled={githubBusy}
+                disabled={githubBusy || !githubConnectAvailable}
                 onClick={() => {
                   play('open')
                   void startGithubOAuth()

@@ -51,3 +51,5 @@ En produccion necesitas publicar un proxy/serverless equivalente y configurar:
 ```env
 VITE_GITHUB_OAUTH_PROXY_URL=https://tu-dominio.com/github-oauth
 ```
+
+Si no configuras el proxy en produccion, la app seguira funcionando y solo desactivara la conexion con GitHub para evitar errores de OAuth en el front.

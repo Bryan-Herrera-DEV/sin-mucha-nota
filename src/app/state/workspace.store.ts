@@ -27,7 +27,7 @@ import {
   type GithubSyncConfig,
   type GithubSyncState,
 } from '@/infrastructure/db/localDatabase'
-import { getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
+import { canUseGithubOAuth, getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
 import { getErrorMessage, reportAppError } from '@/shared/lib/appError'
 
@@ -453,6 +453,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         },
         async startGithubOAuth() {
+          if (!canUseGithubOAuth()) {
+            set({ githubBusy: false, githubDeviceFlow: null, githubError: null })
+
+            return
+          }
+
           const clientId = getGithubClientId()
 
           if (!clientId) {
@@ -481,6 +487,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         },
         async completeGithubOAuth() {
+          if (!canUseGithubOAuth()) {
+            set({ githubDeviceFlow: null, githubBusy: false })
+
+            return
+          }
+
           const clientId = getGithubClientId()
           const deviceFlow = get().githubDeviceFlow
 

@@ -104,6 +104,10 @@ export async function requestGithubDeviceCode(clientId: string): Promise<GithubD
   })
 }
 
+export function canUseGithubOAuth(): boolean {
+  return Boolean(getGithubOAuthProxyBaseUrl()) || import.meta.env.DEV
+}
+
 export async function pollGithubDeviceToken(clientId: string, deviceCode: string): Promise<GithubTokenResponse> {
   return fetchGithubOAuth<GithubTokenResponse>('access_token', {
     client_id: clientId,
@@ -234,7 +238,7 @@ async function fetchGithubDeviceCode<T>(body: Record<string, string>): Promise<T
 }
 
 function createGithubOAuthUrl(path: string, fallbackUrl: string): string {
-  const proxyBaseUrl = import.meta.env.VITE_GITHUB_OAUTH_PROXY_URL?.trim().replace(/\/$/, '')
+  const proxyBaseUrl = getGithubOAuthProxyBaseUrl()
 
   if (proxyBaseUrl) {
     return `${proxyBaseUrl}/${path}`
@@ -245,10 +249,14 @@ function createGithubOAuthUrl(path: string, fallbackUrl: string): string {
   }
 
   if (import.meta.env.PROD) {
-    throw new Error('Configura VITE_GITHUB_OAUTH_PROXY_URL para usar OAuth de GitHub en produccion.')
+    throw new Error('GitHub OAuth no esta disponible en este despliegue.')
   }
 
   return fallbackUrl
+}
+
+function getGithubOAuthProxyBaseUrl(): string {
+  return import.meta.env.VITE_GITHUB_OAUTH_PROXY_URL?.trim().replace(/\/$/, '') ?? ''
 }
 
 async function fetchGithubApi<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
