@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Cloud, ExternalLink, GitFork, PanelRightClose, Palette, Sparkles, Star, Type, Volume2 } from 'lucide-react'
-import { accentColorOptions, fontOptions, themeOptions, type FontFamily, type Locale } from '@/domain/preferences/preferences'
+import {
+  accentColorOptions,
+  DEFAULT_SOUND_VOLUME,
+  fontOptions,
+  normalizeSoundVolume,
+  themeOptions,
+  type FontFamily,
+  type Locale,
+} from '@/domain/preferences/preferences'
 import { useI18n } from '@/app/i18n/useI18n'
+import { setUiSoundVolume } from '@/infrastructure/sound/uiSound'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
 import { Button } from '@/shared/ui/Button'
@@ -38,10 +47,19 @@ export function SettingsPanel() {
   const play = useSoundFeedback()
   const githubConnectAvailable = canUseGithubOAuth()
   const [displayNameDraft, setDisplayNameDraft] = useState(preferences?.displayName ?? '')
+  const [soundVolumeDraft, setSoundVolumeDraft] = useState(preferences?.soundVolume ?? DEFAULT_SOUND_VOLUME)
+  const committedSoundVolume = useRef(soundVolumeDraft)
 
   useEffect(() => {
     setDisplayNameDraft(preferences?.displayName ?? '')
   }, [preferences?.displayName])
+
+  useEffect(() => {
+    const soundVolume = preferences?.soundVolume ?? DEFAULT_SOUND_VOLUME
+    setSoundVolumeDraft(soundVolume)
+    committedSoundVolume.current = soundVolume
+    setUiSoundVolume(soundVolume)
+  }, [preferences?.soundVolume])
 
   useEffect(() => {
     void loadGithubSettings()
@@ -66,6 +84,17 @@ export function SettingsPanel() {
 
     return () => window.clearInterval(poll)
   }, [completeGithubOAuth, githubDeviceFlow])
+
+  const commitSoundVolume = () => {
+    const soundVolume = normalizeSoundVolume(soundVolumeDraft)
+
+    if (committedSoundVolume.current === soundVolume) {
+      return
+    }
+
+    committedSoundVolume.current = soundVolume
+    void updatePreferences({ soundVolume })
+  }
 
   if (!preferences) {
     return null
@@ -200,11 +229,46 @@ export function SettingsPanel() {
             {preferences.soundEnabled ? t('enabled') : t('disabled')}
           </Button>
           {preferences.soundEnabled ? (
-              <div>
-                <Button className="mt-2 w-full" onClick={() => play('save')} variant="ghost">
-                  {t('soundPreview')}
-                </Button>
+            <div className="mt-3">
+              <div className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold">
+                  <label htmlFor="ui-sound-volume">{t('soundVolume')}</label>
+                  <output className="tabular-nums text-[var(--accent)]" htmlFor="ui-sound-volume">
+                    {Math.round(soundVolumeDraft * 100)}%
+                  </output>
+                </div>
+                <input
+                  aria-label={t('soundVolume')}
+                  aria-valuetext={`${Math.round(soundVolumeDraft * 100)}%`}
+                  className="h-2 w-full cursor-pointer accent-[var(--accent)]"
+                  id="ui-sound-volume"
+                  max="100"
+                  min="0"
+                  onBlur={commitSoundVolume}
+                  onInput={(event) => {
+                    const soundVolume = normalizeSoundVolume(Number(event.currentTarget.value) / 100)
+                    setSoundVolumeDraft(soundVolume)
+                    setUiSoundVolume(soundVolume)
+                  }}
+                  onKeyUp={commitSoundVolume}
+                  onPointerCancel={commitSoundVolume}
+                  onPointerUp={commitSoundVolume}
+                  step="1"
+                  type="range"
+                  value={Math.round(soundVolumeDraft * 100)}
+                />
               </div>
+              <Button
+                className="mt-2 w-full"
+                onClick={() => {
+                  commitSoundVolume()
+                  play('save')
+                }}
+                variant="ghost"
+              >
+                {t('soundPreview')}
+              </Button>
+            </div>
           ) : null}
         </section>
 

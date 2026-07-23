@@ -1,6 +1,6 @@
 import type { Folder } from '@/domain/folders/folder'
 import { createEmptyDrawing, type Note } from '@/domain/notes/note'
-import type { UserPreferences } from '@/domain/preferences/preferences'
+import { normalizeSoundVolume, type UserPreferences } from '@/domain/preferences/preferences'
 import type { ISODate } from '@/domain/shared/valueObjects'
 import {
   clearGithubInitialSyncStrategy,
@@ -72,6 +72,7 @@ type RemoteWorkspaceSnapshot = {
   headSha: string | null
   treeSha: string | null
   empty: boolean
+  preferenceSoundVolumeMissing: boolean
 }
 
 type SyncFile = {
@@ -91,7 +92,8 @@ export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
   await writeSyncState({ status: 'syncing', lastDirection: null, lastError: null })
 
   try {
-    const [localSnapshot, remoteSnapshot] = await Promise.all([createLocalWorkspaceSnapshot(config), readRemoteWorkspaceSnapshot(auth.accessToken, config)])
+    const [localSnapshot, downloadedRemoteSnapshot] = await Promise.all([createLocalWorkspaceSnapshot(config), readRemoteWorkspaceSnapshot(auth.accessToken, config)])
+    const remoteSnapshot = preserveLocalSoundVolume(downloadedRemoteSnapshot, localSnapshot.document.preferences?.soundVolume)
     const remoteDocument = remoteSnapshot.document
 
     if (config.initialSyncStrategy) {
@@ -221,7 +223,7 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
   })
 
   if (!ref) {
-    return { document: null, files: new Map(), remotePaths: new Set(), headSha: null, treeSha: null, empty: true }
+    return { document: null, files: new Map(), remotePaths: new Set(), headSha: null, treeSha: null, empty: true, preferenceSoundVolumeMissing: false }
   }
 
   const commit = await getGithubCommit(accessToken, config.owner, config.repo, ref.object.sha)
@@ -231,11 +233,15 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
   const workspaceEntry = remoteEntries.get(createWorkspacePath(config))
 
   if (!workspaceEntry?.sha) {
-    return { document: null, files: new Map(), remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false }
+    return { document: null, files: new Map(), remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false, preferenceSoundVolumeMissing: false }
   }
 
   const workspaceContent = await readRemoteBlob(accessToken, config, workspaceEntry.sha)
-  const document = JSON.parse(workspaceContent) as GithubWorkspaceDocument
+  const parsedDocument = JSON.parse(workspaceContent) as GithubWorkspaceDocument
+  const preferenceSoundVolumeMissing = Boolean(
+    parsedDocument.preferences && !Object.prototype.hasOwnProperty.call(parsedDocument.preferences, 'soundVolume'),
+  )
+  const document = normalizeGithubWorkspaceDocument(parsedDocument)
   const files = new Map<string, string>([[createWorkspacePath(config), workspaceContent]])
 
   for (const note of document.notes) {
@@ -248,7 +254,7 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
     files.set(drawingPath, drawingEntry?.sha ? await readRemoteBlob(accessToken, config, drawingEntry.sha) : JSON.stringify(createEmptyDrawing(), null, 2))
   }
 
-  return { document, files, remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false }
+  return { document, files, remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false, preferenceSoundVolumeMissing }
 }
 
 async function readRemoteBlob(accessToken: string, config: GithubSyncConfig, blobSha: string): Promise<string> {
@@ -408,6 +414,38 @@ function pickNewestOptional<T extends { updatedAt: ISODate }>(localEntity: T | n
 
 function pickFileContent(useRemoteFiles: boolean, remoteContent: string | undefined, localContent: string | undefined, fallbackContent: string): string {
   return (useRemoteFiles ? (remoteContent ?? localContent) : (localContent ?? remoteContent)) ?? fallbackContent
+}
+
+function normalizeGithubWorkspaceDocument(document: GithubWorkspaceDocument): GithubWorkspaceDocument {
+  return {
+    ...document,
+    preferences: document.preferences
+      ? {
+          ...document.preferences,
+          soundVolume: normalizeSoundVolume(document.preferences.soundVolume),
+        }
+      : null,
+  }
+}
+
+function preserveLocalSoundVolume(remoteSnapshot: RemoteWorkspaceSnapshot, localSoundVolume: number | undefined): RemoteWorkspaceSnapshot {
+  const remoteDocument = remoteSnapshot.document
+  const remotePreferences = remoteDocument?.preferences
+
+  if (!remoteSnapshot.preferenceSoundVolumeMissing || !remoteDocument || !remotePreferences) {
+    return remoteSnapshot
+  }
+
+  return {
+    ...remoteSnapshot,
+    document: {
+      ...remoteDocument,
+      preferences: {
+        ...remotePreferences,
+        soundVolume: normalizeSoundVolume(localSoundVolume),
+      },
+    },
+  }
 }
 
 function createSyncFileMap(files: SyncFile[]): Map<string, string> {

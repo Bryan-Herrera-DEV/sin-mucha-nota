@@ -1,7 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Folder } from '@/domain/folders/folder'
 import type { Note } from '@/domain/notes/note'
-import type { ThemeId, UserPreferences } from '@/domain/preferences/preferences'
+import { normalizeSoundVolume, type ThemeId, type UserPreferences } from '@/domain/preferences/preferences'
 import { nowIso, type ISODate } from '@/domain/shared/valueObjects'
 
 const DATABASE_NAME = 'sin-mucha-nota'
@@ -13,7 +13,11 @@ const GITHUB_CONFIG_ID = 'config'
 const GITHUB_SYNC_STATE_ID = 'state'
 const LOCAL_WORKSPACE_META_ID = 'local'
 
-type StoredPreferences = Omit<UserPreferences, 'themeId'> & { themeId?: ThemeId; id: typeof ACTIVE_PREFERENCES_ID }
+type StoredPreferences = Omit<UserPreferences, 'soundVolume' | 'themeId'> & {
+  soundVolume?: number
+  themeId?: ThemeId
+  id: typeof ACTIVE_PREFERENCES_ID
+}
 
 export type StoredFile = {
   path: string
@@ -268,6 +272,7 @@ export async function loadPreferences(): Promise<UserPreferences | null> {
     fontFamily: preferences.fontFamily,
     locale: preferences.locale,
     soundEnabled: preferences.soundEnabled,
+    soundVolume: normalizeSoundVolume(preferences.soundVolume),
     onboardedAt: preferences.onboardedAt,
     updatedAt: preferences.updatedAt,
   }
@@ -278,6 +283,7 @@ export async function savePreferences(preferences: UserPreferences): Promise<voi
 
   await database.put('preferences', {
     ...preferences,
+    soundVolume: normalizeSoundVolume(preferences.soundVolume),
     id: ACTIVE_PREFERENCES_ID,
   })
 }

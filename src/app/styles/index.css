@@ -120,6 +120,66 @@ body[data-theme='sand'] {
   --app-card-text: #ead9bd;
 }
 
+body[data-theme='light'] {
+  --theme-bg-start: #f8fafc;
+  --theme-bg-mid: #eef3f7;
+  --theme-bg-end: #e4ebf1;
+  --theme-glow: #b7c9da;
+
+  --app-root: #f5f8fb;
+  --app-page: #ffffff;
+  --app-sidebar: #edf2f6;
+  --app-panel: #ffffff;
+  --app-panel-strong: #e8eef3;
+  --app-panel-hover: #e1e9f0;
+  --app-panel-active: #d5e1eb;
+
+  --app-text: #263746;
+  --app-muted: #6f8292;
+  --app-card-text: #405464;
+  --color-white: #263746;
+}
+
+body[data-theme='blush'] {
+  --theme-bg-start: #fff8fa;
+  --theme-bg-mid: #f9edf1;
+  --theme-bg-end: #f2dfe6;
+  --theme-glow: #e4b9c7;
+
+  --app-root: #fcf4f7;
+  --app-page: #fffafb;
+  --app-sidebar: #f6e9ee;
+  --app-panel: #fffefe;
+  --app-panel-strong: #f2e1e7;
+  --app-panel-hover: #efd8e0;
+  --app-panel-active: #e8c9d4;
+
+  --app-text: #4f3740;
+  --app-muted: #987681;
+  --app-card-text: #6b4c57;
+  --color-white: #4f3740;
+}
+
+body[data-theme='sage'] {
+  --theme-bg-start: #f6faf5;
+  --theme-bg-mid: #eaf1e7;
+  --theme-bg-end: #dfe9dc;
+  --theme-glow: #b9cbb5;
+
+  --app-root: #f2f7f0;
+  --app-page: #fbfdfb;
+  --app-sidebar: #e7efe4;
+  --app-panel: #ffffff;
+  --app-panel-strong: #dfe9dc;
+  --app-panel-hover: #d7e4d3;
+  --app-panel-active: #c8d8c4;
+
+  --app-text: #304034;
+  --app-muted: #718174;
+  --app-card-text: #4d6051;
+  --color-white: #304034;
+}
+
 body[data-font='serif'] {
   --font-ui: Georgia, "Times New Roman", serif;
   --font-editor: Georgia, "Times New Roman", serif;

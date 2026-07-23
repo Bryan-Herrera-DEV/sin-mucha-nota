@@ -1,41 +1,46 @@
-import type { SoundName } from 'cuelume'
+import { DEFAULT_SOUND_VOLUME, normalizeSoundVolume } from '@/domain/preferences/preferences'
 
 export type UiSound = 'tap' | 'save' | 'open' | 'delete' | 'page'
 
-const soundMap: Record<UiSound, SoundName> = {
-  tap: 'tick',
-  open: 'bloom',
-  save: 'success',
-  delete: 'error',
-  page: 'page',
-}
-
 let soundEnabled = true
-let soundModulePromise: Promise<typeof import('cuelume') | null> | null = null
+let soundVolume = DEFAULT_SOUND_VOLUME
+let soundEnginePromise: Promise<typeof import('./uiSoundEngine') | null> | null = null
 
 export function setUiSoundEnabled(enabled: boolean): void {
   soundEnabled = enabled
+  configureLoadedEngine()
+}
 
-  if (soundModulePromise) {
-    void soundModulePromise.then((soundModule) => soundModule?.setEnabled(enabled))
-  }
+export function setUiSoundVolume(volume: number): void {
+  soundVolume = normalizeSoundVolume(volume)
+  configureLoadedEngine()
 }
 
 export function playUiSound(sound: UiSound): void {
-  if (!soundEnabled) {
+  if (!soundEnabled || soundVolume === 0) {
     return
   }
 
-  soundModulePromise ??= import('cuelume').catch(() => null)
-  void soundModulePromise.then((soundModule) => {
-    if (!soundModule) {
+  soundEnginePromise ??= import('./uiSoundEngine').catch(() => null)
+  void soundEnginePromise.then((soundEngine) => {
+    if (!soundEngine) {
       return
     }
 
-    soundModule.setEnabled(soundEnabled)
+    soundEngine.configureUiSoundEngine({ enabled: soundEnabled, volume: soundVolume })
 
-    if (soundEnabled) {
-      soundModule.play(soundMap[sound])
+    if (soundEnabled && soundVolume > 0) {
+      soundEngine.playUiSoundRecipe(sound)
     }
+  })
+}
+
+function configureLoadedEngine(): void {
+  if (!soundEnginePromise) {
+    return
+  }
+
+  void soundEnginePromise.then((soundEngine) => {
+    soundEngine?.configureUiSoundEngine({ enabled: soundEnabled, volume: soundVolume })
   })
 }
