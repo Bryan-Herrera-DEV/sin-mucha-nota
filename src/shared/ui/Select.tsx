@@ -24,6 +24,7 @@ type SelectProps = {
 export function Select({ value, onValueChange, options, placeholder, variant = 'dark', className, contentClassName, ariaLabel }: SelectProps) {
   const isLight = variant === 'light'
   const [open, setOpen] = useState(false)
+  const selectedLabel = options.find((option) => option.value === value)?.label
 
   return (
     <SelectPrimitive.Root onOpenChange={setOpen} onValueChange={onValueChange} open={open} value={value}>
@@ -35,7 +36,9 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={placeholder} />
+        <SelectPrimitive.Value placeholder={placeholder}>
+          {selectedLabel ?? placeholder ?? value}
+        </SelectPrimitive.Value>
         <SelectPrimitive.Icon asChild>
           <ChevronDown className="shrink-0 text-[var(--app-muted)]" size={15} />
         </SelectPrimitive.Icon>
