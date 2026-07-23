@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useRef, type MutableRefObject } from 'react'
-import '@excalidraw/excalidraw/index.css'
 import type { DrawingDocument, NoteId } from '@/domain/notes/note'
 
 type ExcalidrawPanelProps = {
@@ -10,11 +9,7 @@ type ExcalidrawPanelProps = {
 
 const DRAWING_SYNC_INTERVAL = 700
 
-const ExcalidrawCanvas = lazy(async () => {
-  const module = await import('@excalidraw/excalidraw')
-
-  return { default: module.Excalidraw }
-})
+const ExcalidrawCanvas = lazy(() => import('@/features/editor/ExcalidrawCanvas'))
 
 export function ExcalidrawPanel({ noteId, drawing, onChange }: ExcalidrawPanelProps) {
   const initialSignatureRef = useRef(createDrawingSignature(drawing))

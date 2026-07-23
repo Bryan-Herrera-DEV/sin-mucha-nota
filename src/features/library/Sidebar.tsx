@@ -1,5 +1,4 @@
-import { startTransition, useState, type ComponentType } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { memo, startTransition, useCallback, useMemo, useState, type ComponentType } from 'react'
 import {
   BookOpen,
   Briefcase,
@@ -22,7 +21,6 @@ import { folderIconOptions, type Folder as FolderEntity, type FolderIcon, type F
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
-import { listContainer, listItem, smoothSpring } from '@/shared/lib/motionPresets'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 import { createFolderTreeIndex, type FolderTreeIndex } from '@/application/workspace/noteFilters'
 
@@ -53,13 +51,17 @@ export function Sidebar() {
   const setSidebarCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed)
   const [folderName, setFolderName] = useState('')
   const [folderIcon, setFolderIcon] = useState<FolderIcon>('folder')
-  const folderIndex = createFolderTreeIndex(folders, notes)
+  const folderIndex = useMemo(() => createFolderTreeIndex(folders, notes), [folders, notes])
   const play = useSoundFeedback()
+  const handleSelectFolder = useCallback((folderId: FolderId) => {
+    selectFolder(folderId)
+    play('open')
+  }, [play, selectFolder])
 
   return (
-    <AnimatePresence initial={false} mode="popLayout">
+    <>
       {sidebarCollapsed ? (
-      <motion.aside className="app-sidebar flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 px-3 py-2 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3" key="sidebar-collapsed" layout initial={{ opacity: 0, x: -18, filter: 'blur(6px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -18, filter: 'blur(6px)' }} transition={smoothSpring}>
+      <aside className="app-sidebar flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 px-3 py-2 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3">
         <button
           className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/8 text-white transition hover:bg-white/12"
           onClick={() => {
@@ -86,34 +88,29 @@ export function Sidebar() {
         >
           <FileText size={15} />
         </button>
-        <motion.div className="flex min-w-0 flex-1 gap-2 overflow-auto lg:w-full lg:flex-col lg:items-center" variants={listContainer} initial="hidden" animate="visible">
-          <AnimatePresence initial={false}>
+        <div className="flex min-w-0 flex-1 gap-2 overflow-auto lg:w-full lg:flex-col lg:items-center">
             {folderIndex.rootFolders.map((folder) => {
               const FolderIcon = folderIconMap[folder.icon]
 
               return (
-                <motion.button
+                <button
                   className={cn(
                     'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#d8e5d9] transition hover:bg-white/10 hover:text-white',
                     activeFolderId === folder.id && 'bg-white/12 text-white',
                   )}
                   key={folder.id}
-                  layout
                   onClick={() => {
                     selectFolder(folder.id)
                     play('open')
                   }}
-                  variants={listItem}
-                  exit="exit"
                   title={folder.name}
                   type="button"
                 >
                   <FolderIcon size={15} />
-                </motion.button>
+                </button>
               )
             })}
-          </AnimatePresence>
-        </motion.div>
+        </div>
         <button
           className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--app-muted)] transition hover:bg-white/10 hover:text-white"
           onClick={() => {
@@ -125,9 +122,9 @@ export function Sidebar() {
         >
           <Settings size={15} />
         </button>
-      </motion.aside>
+      </aside>
       ) : (
-    <motion.aside className="app-sidebar flex min-h-0 flex-col border-b border-white/10 px-3 py-3 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r" key="sidebar-expanded" layout initial={{ opacity: 0, x: -22, filter: 'blur(7px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, x: -22, filter: 'blur(7px)' }} transition={smoothSpring}>
+    <aside className="app-sidebar flex min-h-0 flex-col border-b border-white/10 px-3 py-3 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r">
       <div className="mb-4 flex items-center gap-2">
         <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
         <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
@@ -186,8 +183,7 @@ export function Sidebar() {
           <span>{folders.length}</span>
         </div>
 
-        <motion.div className="space-y-1" variants={listContainer} initial="hidden" animate="visible">
-          <AnimatePresence initial={false}>
+        <div className="space-y-1">
             {folderIndex.rootFolders.map((folder) => (
               <FolderNode
                 activeFolderId={activeFolderId}
@@ -195,14 +191,10 @@ export function Sidebar() {
                 folder={folder}
                 folderIndex={folderIndex}
                 key={folder.id}
-                onSelect={(folderId) => {
-                  selectFolder(folderId)
-                  play('open')
-                }}
+                onSelect={handleSelectFolder}
               />
             ))}
-          </AnimatePresence>
-        </motion.div>
+        </div>
       </section>
 
       <form
@@ -274,9 +266,9 @@ export function Sidebar() {
         </span>
         <Settings className="text-[var(--app-muted)]" size={16} />
       </button>
-    </motion.aside>
+    </aside>
       )}
-    </AnimatePresence>
+    </>
   )
 }
 
@@ -288,14 +280,14 @@ type FolderNodeProps = {
   deleteFolder(folderId: FolderId): Promise<void>
 }
 
-function FolderNode({ folder, folderIndex, activeFolderId, onSelect, deleteFolder }: FolderNodeProps) {
+const FolderNode = memo(function FolderNode({ folder, folderIndex, activeFolderId, onSelect, deleteFolder }: FolderNodeProps) {
   const [open, setOpen] = useState(true)
   const children = folderIndex.childrenByParent.get(folder.id) ?? []
   const FolderIcon = folderIconMap[folder.icon]
   const count = folderIndex.noteCountByFolderId.get(folder.id) ?? 0
 
   return (
-    <motion.div layout variants={listItem} initial="hidden" animate="visible" exit="exit">
+    <div>
       <div className="group flex items-center gap-1 rounded-2xl py-1">
         <button className="rounded-full p-1 text-[var(--app-muted)] hover:bg-white/10" onClick={() => setOpen((value) => !value)} type="button">
           {children.length > 0 ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : <span className="block h-3.5 w-3.5" />}
@@ -320,15 +312,13 @@ function FolderNode({ folder, folderIndex, activeFolderId, onSelect, deleteFolde
           <Trash2 size={14} />
         </button>
       </div>
-      <AnimatePresence initial={false}>
-        {open && children.length > 0 ? (
-          <motion.div className="ml-5 border-l border-white/10 pl-2" key="children" layout initial={{ opacity: 0, height: 0, y: -6 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -6 }} transition={smoothSpring}>
+      {open && children.length > 0 ? (
+          <div className="ml-5 border-l border-white/10 pl-2">
             {children.map((child) => (
               <FolderNode activeFolderId={activeFolderId} deleteFolder={deleteFolder} folder={child} folderIndex={folderIndex} key={child.id} onSelect={onSelect} />
             ))}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+      ) : null}
+    </div>
   )
-}
+})

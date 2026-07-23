@@ -13,16 +13,16 @@ export const softSpring = {
 } as const
 
 export const panelPresence = {
-  initial: { opacity: 0, y: 18, scale: 0.97, filter: 'blur(6px)' },
-  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
-  exit: { opacity: 0, y: 12, scale: 0.97, filter: 'blur(5px)' },
+  initial: { opacity: 0, y: 12, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: 8, scale: 0.98 },
   transition: softSpring,
 } as const
 
 export const sidePanelPresence = {
-  initial: { opacity: 0, x: 28, scale: 0.98, filter: 'blur(8px)' },
-  animate: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' },
-  exit: { opacity: 0, x: 28, scale: 0.98, filter: 'blur(8px)' },
+  initial: { opacity: 0, x: 24 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 24 },
   transition: smoothSpring,
 } as const
 

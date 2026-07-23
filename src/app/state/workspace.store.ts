@@ -127,7 +127,7 @@ const initialWorkspaceState: WorkspaceState = {
   markdownDraft: '',
   drawingDraft: createEmptyDrawing(),
   loadedContentNoteId: null,
-  editorMode: 'split',
+  editorMode: 'markdown',
   search: '',
   isDirty: false,
   settingsOpen: false,
@@ -159,9 +159,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           set({ bootStatus: 'loading', errorMessage: null })
 
           try {
-            const snapshot = await workspaceService.loadSnapshot()
+            const [snapshot, githubAuth, githubConfig, githubSyncState] = await Promise.all([
+              workspaceService.loadSnapshot(),
+              loadGithubAuth(),
+              loadGithubConfig(),
+              loadGithubSyncState(),
+            ])
             await workspaceService.mirrorNoteFilesToIndexedDb(snapshot.notes)
-            const [githubAuth, githubConfig, githubSyncState] = await Promise.all([loadGithubAuth(), loadGithubConfig(), loadGithubSyncState()])
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
             const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
             const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
@@ -681,7 +685,7 @@ function sanitizePersistedWorkspaceState(persistedState: unknown): PersistedWork
   return {
     activeFolderId: state.activeFolderId ?? null,
     activeNoteId: state.activeNoteId ?? null,
-    editorMode: isEditorMode(state.editorMode) ? state.editorMode : 'split',
+    editorMode: isEditorMode(state.editorMode) ? state.editorMode : 'markdown',
     settingsOpen: state.settingsOpen ?? false,
     sidebarCollapsed: state.sidebarCollapsed ?? false,
   }

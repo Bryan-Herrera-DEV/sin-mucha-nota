@@ -1,11 +1,9 @@
-import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { Cloud, ExternalLink, GitFork, PanelRightClose, Palette, Sparkles, Star, Type, Volume2 } from 'lucide-react'
 import { accentColorOptions, fontOptions, themeOptions, type FontFamily, type Locale } from '@/domain/preferences/preferences'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
-import { listContainer, listItem, panelPresence, smoothSpring } from '@/shared/lib/motionPresets'
 import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
@@ -39,6 +37,11 @@ export function SettingsPanel() {
   const syncGithubNow = useWorkspaceStore((state) => state.syncGithubNow)
   const play = useSoundFeedback()
   const githubConnectAvailable = canUseGithubOAuth()
+  const [displayNameDraft, setDisplayNameDraft] = useState(preferences?.displayName ?? '')
+
+  useEffect(() => {
+    setDisplayNameDraft(preferences?.displayName ?? '')
+  }, [preferences?.displayName])
 
   useEffect(() => {
     void loadGithubSettings()
@@ -72,7 +75,7 @@ export function SettingsPanel() {
   const selectedRepoValue = pendingGithubRepoFullName ?? githubConfig?.repoFullName ?? 'no-repos'
 
   return (
-    <motion.aside className="app-settings flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 p-3 text-[var(--app-text)] shadow-soft backdrop-blur lg:max-h-full" layout transition={smoothSpring}>
+    <aside className="app-settings flex h-full max-h-none flex-col rounded-[1.5rem] border border-white/12 p-3 text-[var(--app-text)] shadow-soft lg:max-h-full">
       <header className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--app-muted)]">{t('settings')}</p>
@@ -91,15 +94,20 @@ export function SettingsPanel() {
         </Button>
       </header>
 
-      <motion.div className="space-y-3 overflow-auto pr-1" variants={listContainer} initial="hidden" animate="visible">
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+      <div className="space-y-3 overflow-auto pr-1">
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <p className="mb-3 text-sm font-black text-white">{t('profile')}</p>
           <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">
             {t('nameLabel')}
             <input
               className="mt-2 h-9 w-full rounded-xl border border-white/10 bg-[var(--app-panel-strong)] px-3 text-sm normal-case tracking-normal text-white outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-              value={preferences.displayName}
-              onChange={(event) => void updatePreferences({ displayName: event.target.value })}
+              value={displayNameDraft}
+              onBlur={() => {
+                if (displayNameDraft !== preferences.displayName) {
+                  void updatePreferences({ displayName: displayNameDraft })
+                }
+              }}
+              onChange={(event) => setDisplayNameDraft(event.target.value)}
             />
           </label>
           <label className="mt-4 block text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">
@@ -114,9 +122,9 @@ export function SettingsPanel() {
               value={preferences.locale}
             />
           </label>
-        </motion.section>
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
             <Sparkles size={17} />
             {t('themeLabel')}
@@ -138,9 +146,9 @@ export function SettingsPanel() {
               </button>
             ))}
           </div>
-        </motion.section>
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Palette size={17} />
             {t('accentLabel')}
@@ -159,9 +167,9 @@ export function SettingsPanel() {
               />
             ))}
           </div>
-        </motion.section>
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Type size={17} />
             {t('fontLabel')}
@@ -174,9 +182,9 @@ export function SettingsPanel() {
             }))}
             value={preferences.fontFamily}
           />
-        </motion.section>
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-3 flex items-center gap-2 text-sm font-black text-white">
             <Volume2 size={17} />
             {t('sounds')}
@@ -191,18 +199,16 @@ export function SettingsPanel() {
           >
             {preferences.soundEnabled ? t('enabled') : t('disabled')}
           </Button>
-          <AnimatePresence initial={false}>
-            {preferences.soundEnabled ? (
-              <motion.div key="sound-preview" layout {...panelPresence}>
+          {preferences.soundEnabled ? (
+              <div>
                 <Button className="mt-2 w-full" onClick={() => play('save')} variant="ghost">
                   {t('soundPreview')}
                 </Button>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </motion.section>
+              </div>
+          ) : null}
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
             <Cloud size={17} />
             {t('githubSync')}
@@ -223,18 +229,16 @@ export function SettingsPanel() {
                 {t('githubConnect')}
               </Button>
 
-              <AnimatePresence initial={false}>
-                {githubDeviceFlow ? (
-                  <motion.div className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm" key="device-flow" layout {...panelPresence}>
+              {githubDeviceFlow ? (
+                  <div className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">{t('githubUserCode')}</p>
                     <p className="mt-1 text-2xl font-black tracking-[0.18em] text-white">{githubDeviceFlow.userCode}</p>
                     <a className="mt-3 inline-flex rounded-full border border-[var(--accent)] px-3 py-2 text-xs font-black text-[var(--accent)]" href={githubDeviceFlow.verificationUri} rel="noreferrer" target="_blank">
                       {t('githubOpenDevice')}
                     </a>
                     <p className="mt-3 text-xs text-[var(--app-muted)]">{t('githubWaiting')}</p>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
+                  </div>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-3">
@@ -260,9 +264,8 @@ export function SettingsPanel() {
                 />
               </div>
 
-              <AnimatePresence initial={false}>
-                {syncDecisionRepoName ? (
-                <motion.div className="rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] p-3" key="sync-decision" layout {...panelPresence}>
+              {syncDecisionRepoName ? (
+                <div className="rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] p-3">
                   <p className="text-sm font-black text-white">{t('githubInitialSyncTitle')}</p>
                   <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{t('githubInitialSyncBody')}</p>
                   <p className="mt-2 truncate text-xs font-black text-white">{syncDecisionRepoName}</p>
@@ -304,9 +307,8 @@ export function SettingsPanel() {
                     ) : null}
                   </div>
                   <p className="mt-3 text-xs leading-5 text-[var(--app-muted)]">{t('githubInitialSyncHint')}</p>
-                </motion.div>
-                ) : null}
-              </AnimatePresence>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -330,17 +332,15 @@ export function SettingsPanel() {
                 </Button>
               </div>
 
-              <AnimatePresence initial={false}>
-                {githubConfig ? (
-                <motion.div className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-xs leading-6 text-[var(--app-muted)]" key="github-config" layout {...panelPresence}>
+              {githubConfig ? (
+                <div className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-xs leading-6 text-[var(--app-muted)]">
                   <p><span className="font-black text-white">{t('githubBasePath')}:</span> {githubConfig.basePath}</p>
                   <p><span className="font-black text-white">Branch:</span> {githubConfig.branch}</p>
                   <p><span className="font-black text-white">{t('githubStatus')}:</span> {formatSyncStatus(githubSyncState?.status, preferences.locale)}</p>
                   <p><span className="font-black text-white">{t('githubLastSync')}:</span> {githubSyncState?.lastSyncedAt ? new Date(githubSyncState.lastSyncedAt).toLocaleString() : '-'}</p>
                   {githubSyncState?.lastError ? <p className="text-red-100"><span className="font-black text-white">Error:</span> {githubSyncState.lastError}</p> : null}
-                </motion.div>
-                ) : null}
-              </AnimatePresence>
+                </div>
+              ) : null}
 
               <Button
                 className="w-full"
@@ -355,12 +355,10 @@ export function SettingsPanel() {
             </div>
           )}
 
-          <AnimatePresence initial={false}>
-            {githubError ? <motion.p className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100" key="github-error" layout {...panelPresence}>{githubError}</motion.p> : null}
-          </AnimatePresence>
-        </motion.section>
+          {githubError ? <p className="mt-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs leading-5 text-red-100">{githubError}</p> : null}
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-white/6 p-3" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <div className="mb-2 flex items-center gap-2 text-sm font-black text-white">
             <GitFork size={17} />
             {t('projectRepository')}
@@ -394,14 +392,14 @@ export function SettingsPanel() {
             <Star className="fill-current" size={16} />
             {t('starRepository')}
           </a>
-        </motion.section>
+        </section>
 
-        <motion.section className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm leading-6 text-[var(--app-muted)]" layout variants={listItem}>
+        <section className="rounded-2xl border border-white/10 bg-[var(--app-panel-strong)] p-3 text-sm leading-6 text-[var(--app-muted)]">
           <p className="font-black text-white">{t('storage')}</p>
           <p>{storageMode === 'opfs' ? t('storageOpfs') : t('storageIndexedDb')}</p>
-        </motion.section>
-      </motion.div>
-    </motion.aside>
+        </section>
+      </div>
+    </aside>
   )
 }
 

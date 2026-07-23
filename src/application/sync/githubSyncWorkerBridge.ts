@@ -11,11 +11,14 @@ type GithubSyncWorkerMessage = {
 
 export function useGithubSyncWorkerBridge(): void {
   const bootStatus = useWorkspaceStore((state) => state.bootStatus)
+  const githubSyncEnabled = useWorkspaceStore((state) => state.githubConfig?.enabled ?? false)
   const bootstrap = useWorkspaceStore((state) => state.bootstrap)
   const loadGithubSettings = useWorkspaceStore((state) => state.loadGithubSettings)
 
   useEffect(() => {
-    if (bootStatus !== 'ready') {
+    if (bootStatus !== 'ready' || !githubSyncEnabled) {
+      githubSyncWorker?.postMessage({ type: 'stop' })
+
       return
     }
 
@@ -45,7 +48,7 @@ export function useGithubSyncWorkerBridge(): void {
       window.removeEventListener('github-sync-config-changed', syncNow)
       githubSyncWorker?.postMessage({ type: 'stop' })
     }
-  }, [bootStatus, bootstrap, loadGithubSettings])
+  }, [bootStatus, bootstrap, githubSyncEnabled, loadGithubSettings])
 }
 
 export function requestGithubSyncNow(): void {

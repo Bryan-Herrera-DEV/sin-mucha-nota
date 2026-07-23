@@ -24,6 +24,9 @@ import {
   savePreferences,
 } from '@/infrastructure/db/localDatabase'
 import { createFileStorage, type FileStorage, type FileStorageMode } from '@/infrastructure/storage/fileStorage'
+
+const INDEXED_DB_FILE_MIRROR_KEY = 'sin-mucha-nota-files-mirrored-v1'
+const FILE_MIRROR_BATCH_SIZE = 24
 import { collectFolderBranchIds } from '@/application/workspace/noteFilters'
 import { getWelcomeDrawing, getWelcomeMarkdown } from '@/application/workspace/welcomeContent'
 
@@ -113,16 +116,24 @@ class WorkspaceService {
   }
 
   async mirrorNoteFilesToIndexedDb(notes: Note[]): Promise<void> {
-    await Promise.all(
-      notes.map(async (note) => {
+    if (hasCompletedFileMirror()) {
+      return
+    }
+
+    for (let index = 0; index < notes.length; index += FILE_MIRROR_BATCH_SIZE) {
+      const batch = notes.slice(index, index + FILE_MIRROR_BATCH_SIZE)
+
+      await Promise.all(batch.map(async (note) => {
         const content = await this.loadNoteContent(note)
 
         await Promise.all([
           saveStoredFile({ path: note.contentRef.markdownPath, content: content.markdown, kind: 'text' }),
           saveStoredFile({ path: note.contentRef.drawingPath, content: JSON.stringify(content.drawing), kind: 'json' }),
         ])
-      }),
-    )
+      }))
+    }
+
+    markFileMirrorComplete()
   }
 
   async saveNoteContent(note: Note, content: NoteContent): Promise<Note> {
@@ -179,3 +190,27 @@ class WorkspaceService {
 }
 
 export const workspaceService = new WorkspaceService(createFileStorage())
+
+function hasCompletedFileMirror(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    return window.localStorage.getItem(INDEXED_DB_FILE_MIRROR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function markFileMirrorComplete(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(INDEXED_DB_FILE_MIRROR_KEY, '1')
+  } catch {
+    // Storage can be unavailable in privacy-restricted contexts; mirroring still succeeded.
+  }
+}

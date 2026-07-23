@@ -31,10 +31,7 @@ export function OnboardingPage() {
 
   return (
     <main className="app-shell-bg grid h-svh place-items-center overflow-auto px-4 py-6 text-[var(--app-text)]">
-      <div className="theme-orb theme-orb-one" />
-      <div className="theme-orb theme-orb-two" />
-
-      <motion.section className="welcome-card relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.8rem] border border-white/12 shadow-[0_42px_120px_rgb(0_0_0_/_0.34)] lg:grid-cols-[0.95fr_1.05fr]" layout {...panelPresence}>
+      <motion.section className="welcome-card relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[1.8rem] border border-white/12 shadow-[0_42px_120px_rgb(0_0_0_/_0.34)] lg:grid-cols-[0.95fr_1.05fr]" {...panelPresence}>
         <div className="relative isolate flex min-h-[34rem] flex-col justify-between overflow-hidden p-7 sm:p-10">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_10%,var(--accent-soft),transparent_18rem)]" />
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={smoothSpring}>
@@ -44,7 +41,7 @@ export function OnboardingPage() {
           </motion.div>
 
           <div className="relative mt-8 h-60">
-            <motion.div className="welcome-note-preview animate-float-slow absolute left-0 top-2 w-[72%] rounded-[1.35rem] border border-white/12 p-5 shadow-[0_26px_80px_rgb(0_0_0_/_0.28)]" initial={{ opacity: 0, x: -24, rotate: -2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
+            <motion.div className="welcome-note-preview absolute left-0 top-2 w-[72%] rounded-[1.35rem] border border-white/12 p-5 shadow-[0_26px_80px_rgb(0_0_0_/_0.28)]" initial={{ opacity: 0, x: -24, rotate: -2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
                 <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]" />
@@ -58,7 +55,7 @@ export function OnboardingPage() {
                 <span className="block h-2 w-2/3 rounded-full bg-[color-mix(in_srgb,var(--accent)_70%,transparent)]" />
               </div>
             </motion.div>
-            <motion.div className="welcome-drawing-preview animate-float-slow-reverse absolute bottom-0 right-0 w-[54%] rounded-[1.35rem] border border-white/12 p-4 shadow-[0_26px_80px_rgb(0_0_0_/_0.24)]" initial={{ opacity: 0, x: 24, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
+            <motion.div className="welcome-drawing-preview absolute bottom-0 right-0 w-[54%] rounded-[1.35rem] border border-white/12 p-4 shadow-[0_26px_80px_rgb(0_0_0_/_0.24)]" initial={{ opacity: 0, x: 24, rotate: 2 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={smoothSpring}>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--app-muted)]">Excalidraw</p>
               <div className="mt-5 grid h-24 place-items-center rounded-2xl border border-dashed border-[var(--accent)]/60 bg-[var(--accent-soft)]">
                 <div className="h-12 w-28 rotate-[-4deg] rounded-xl border-2 border-[var(--accent)] bg-white/8" />
@@ -68,7 +65,7 @@ export function OnboardingPage() {
         </div>
 
         <motion.form
-          className="space-y-6 border-t border-white/10 bg-black/10 p-7 backdrop-blur sm:p-10 lg:border-l lg:border-t-0"
+          className="space-y-6 border-t border-white/10 bg-black/20 p-7 sm:p-10 lg:border-l lg:border-t-0"
           variants={listContainer}
           initial="hidden"
           animate="visible"
@@ -130,7 +127,6 @@ export function OnboardingPage() {
                 <motion.button
                   className={cn('theme-card text-left', themeId === theme.value && 'theme-card-selected')}
                   key={theme.value}
-                  layout
                   onClick={() => {
                     setThemeId(theme.value)
                     setAccentColor(theme.accentColor)
@@ -155,7 +151,6 @@ export function OnboardingPage() {
               {accentColorOptions.map((option) => (
                 <motion.button
                   key={option.value}
-                  layout
                   type="button"
                   className={cn(
                     'h-12 rounded-2xl border-2 transition hover:scale-[1.03]',
@@ -175,7 +170,7 @@ export function OnboardingPage() {
           </motion.div>
 
           <AnimatePresence initial={false}>
-            {errorMessage ? <motion.p className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100" key="onboarding-error" layout {...panelPresence}>{errorMessage}</motion.p> : null}
+            {errorMessage ? <motion.p className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100" key="onboarding-error" {...panelPresence}>{errorMessage}</motion.p> : null}
           </AnimatePresence>
 
           <motion.div variants={listItem}>

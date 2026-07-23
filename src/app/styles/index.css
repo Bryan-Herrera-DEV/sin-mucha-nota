@@ -154,7 +154,7 @@ body {
   overflow: hidden;
   background: transparent;
   font-family: var(--font-ui);
-  transition: background-color 520ms ease, color 520ms ease;
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 body,
@@ -170,11 +170,9 @@ button,
 input,
 textarea {
   transition:
-    background-color 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 420ms ease,
-    box-shadow 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 220ms ease;
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 180ms ease;
 }
 
 .app-shell-bg {
@@ -213,6 +211,8 @@ textarea {
 
 .note-card {
   background: color-mix(in srgb, var(--app-panel) 75%, transparent);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 8.5rem;
 }
 
 .note-card:hover {
@@ -223,38 +223,9 @@ textarea {
   background: var(--app-panel-active);
 }
 
-.theme-orb {
-  position: fixed;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 9999px;
-  opacity: 0.5;
-  filter: blur(36px);
-  mix-blend-mode: screen;
-  animation: theme-orb-float 9s ease-in-out infinite;
-}
-
-.theme-orb-one {
-  top: 6%;
-  left: 8%;
-  width: 18rem;
-  height: 18rem;
-  background: color-mix(in srgb, var(--accent) 48%, transparent);
-}
-
-.theme-orb-two {
-  right: 8%;
-  bottom: 8%;
-  width: 22rem;
-  height: 22rem;
-  background: color-mix(in srgb, var(--theme-glow) 42%, transparent);
-  animation-delay: -3s;
-}
-
 .welcome-note-preview,
 .welcome-drawing-preview {
-  background: color-mix(in srgb, var(--app-panel-strong) 82%, transparent);
-  backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--app-panel-strong) 96%, transparent);
 }
 
 .theme-card {
@@ -290,34 +261,6 @@ textarea {
   aspect-ratio: 1;
   border-radius: 0.8rem;
   box-shadow: inset 0 1px rgb(255 255 255 / 0.18);
-}
-
-.animate-float-slow {
-  animation: float-slow 6s ease-in-out infinite;
-}
-
-.animate-float-slow-reverse {
-  animation: float-slow 7s ease-in-out infinite reverse;
-}
-
-@keyframes float-slow {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(-1deg);
-  }
-  50% {
-    transform: translate3d(0, -10px, 0) rotate(1deg);
-  }
-}
-
-@keyframes theme-orb-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(24px, -18px, 0) scale(1.08);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

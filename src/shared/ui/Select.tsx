@@ -50,9 +50,10 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
                   isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[var(--app-sidebar)] text-white',
                   contentClassName,
                 )}
-                initial={{ opacity: 0, y: -8, scale: 0.96, filter: 'blur(6px)' }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -6, scale: 0.96, filter: 'blur(6px)' }}
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                style={{ willChange: 'transform, opacity' }}
                 transition={smoothSpring}
               >
                 <SelectPrimitive.Viewport className="p-1">
