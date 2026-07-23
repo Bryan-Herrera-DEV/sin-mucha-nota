@@ -6,8 +6,28 @@ export type Locale = (typeof supportedLocales)[number]
 export const fontFamilies = ['system', 'serif', 'mono', 'rounded'] as const
 export type FontFamily = (typeof fontFamilies)[number]
 
-export const themeIds = ['forest', 'midnight', 'ember', 'plum', 'sand'] as const
+export const themeIds = [
+  'forest',
+  'midnight',
+  'ember',
+  'plum',
+  'sand',
+  'light',
+  'blush',
+  'sage',
+] as const
+
 export type ThemeId = (typeof themeIds)[number]
+
+export const DEFAULT_SOUND_VOLUME = 1
+
+export function normalizeSoundVolume(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_SOUND_VOLUME
+  }
+
+  return Math.round(Math.min(1, Math.max(0, value)) * 100) / 100
+}
 
 export type UserPreferences = {
   displayName: string
@@ -16,6 +36,7 @@ export type UserPreferences = {
   fontFamily: FontFamily
   locale: Locale
   soundEnabled: boolean
+  soundVolume: number
   onboardedAt: ISODate
   updatedAt: ISODate
 }
@@ -74,6 +95,33 @@ export const themeOptions = [
     accentColor: '#d4a373' as HexColor,
     preview: ['#3f3427', '#15110c'],
   },
+  {
+    value: 'light',
+    labelEs: 'Luz',
+    labelEn: 'Light',
+    descriptionEs: 'Claro, limpio y suave para escribir sin distracciones.',
+    descriptionEn: 'Bright, clean and soft for distraction-free writing.',
+    accentColor: '#7895b2' as HexColor,
+    preview: ['#f8fafc', '#e9eef4'],
+  },
+  {
+    value: 'blush',
+    labelEs: 'Rosa nube',
+    labelEn: 'Blush',
+    descriptionEs: 'Rosa delicado con una sensación cálida y tranquila.',
+    descriptionEn: 'Delicate pink with a warm and peaceful feel.',
+    accentColor: '#c9879d' as HexColor,
+    preview: ['#fff8fa', '#f5e5ea'],
+  },
+  {
+    value: 'sage',
+    labelEs: 'Salvia',
+    labelEn: 'Sage',
+    descriptionEs: 'Verde natural y relajante con tonos claros.',
+    descriptionEn: 'Relaxing natural green with soft, bright tones.',
+    accentColor: '#829b83' as HexColor,
+    preview: ['#f6faf5', '#e3ebe1'],
+  },
 ] as const satisfies ReadonlyArray<{
   value: ThemeId
   labelEs: string
@@ -98,6 +146,7 @@ export function createUserPreferences(input: {
   fontFamily: FontFamily
   locale: Locale
   soundEnabled?: boolean
+  soundVolume?: number
 }): UserPreferences {
   const timestamp = nowIso()
 
@@ -108,6 +157,7 @@ export function createUserPreferences(input: {
     fontFamily: input.fontFamily,
     locale: input.locale,
     soundEnabled: input.soundEnabled ?? true,
+    soundVolume: normalizeSoundVolume(input.soundVolume),
     onboardedAt: timestamp,
     updatedAt: timestamp,
   }
@@ -125,6 +175,7 @@ export function updateUserPreferences(
     fontFamily: patch.fontFamily ?? preferences.fontFamily,
     locale: patch.locale ?? preferences.locale,
     soundEnabled: patch.soundEnabled ?? preferences.soundEnabled,
+    soundVolume: normalizeSoundVolume(patch.soundVolume === undefined ? preferences.soundVolume : patch.soundVolume),
     updatedAt: nowIso(),
   }
 }
