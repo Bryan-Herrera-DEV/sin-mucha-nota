@@ -158,11 +158,13 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       (set, get) => ({
         ...initialWorkspaceState,
         async bootstrap() {
-          if (get().bootStatus === 'loading') {
+          const previousState = get()
+          const refreshing = previousState.bootStatus === 'ready'
+          if (previousState.bootStatus === 'loading' || refreshing && (previousState.isDirty || previousState.contentStatus === 'saving')) {
             return
           }
 
-          set({ bootStatus: 'loading', errorMessage: null })
+          if (!refreshing) set({ bootStatus: 'loading', errorMessage: null })
 
           try {
             const [snapshot, githubAuth, githubConfig, githubSyncState] = await Promise.all([
@@ -175,6 +177,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
             const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
             const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
+
+            // A sync refresh must not interrupt navigation or overwrite edits made while reading.
+            const currentState = get()
+            if (refreshing && (currentState.isDirty || currentState.contentStatus === 'saving'
+              || currentState.activeNoteId !== previousState.activeNoteId
+              || currentState.notes !== previousState.notes
+              || currentState.folders !== previousState.folders
+              || currentState.preferences !== previousState.preferences)) return
 
             set({
               preferences: snapshot.preferences,
@@ -195,7 +205,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               githubSyncState,
             })
           } catch (error) {
-            set({ bootStatus: 'error', contentStatus: 'error', errorMessage: handleStoreError(error, 'bootstrap') })
+            const errorMessage = handleStoreError(error, 'bootstrap')
+            if (refreshing) set({ errorMessage })
+            else set({ bootStatus: 'error', contentStatus: 'error', errorMessage })
           }
         },
         async completeOnboarding(input) {
