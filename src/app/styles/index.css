@@ -360,7 +360,7 @@ textarea {
 }
 
 #root {
-  height: 100svh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -388,14 +388,6 @@ input:not([data-slot]):focus-visible,
 textarea:not([data-slot]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
 
 ::selection {

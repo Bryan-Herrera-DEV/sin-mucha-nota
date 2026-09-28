@@ -1,10 +1,17 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { EditorWorkspace } from '@/features/editor/EditorWorkspace'
 import { Sidebar } from '@/features/library/Sidebar'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 import { sidePanelPresence, toastPresence } from '@/shared/lib/motionPresets'
+import { LibraryDialogs } from '@/features/library/LibraryDialogs'
+import { Toaster } from '@/shared/ui/shadcn/sonner'
+
+const Dashboard = lazy(async () => {
+  const module = await import('@/features/dashboard/Dashboard')
+  return { default: module.Dashboard }
+})
 
 const SettingsPanel = lazy(async () => {
   const module = await import('@/features/settings/SettingsPanel')
@@ -17,12 +24,28 @@ export function AppShell() {
   const settingsOpen = useWorkspaceStore((state) => state.settingsOpen)
   const errorMessage = useWorkspaceStore((state) => state.errorMessage)
   const dismissError = useWorkspaceStore((state) => state.dismissError)
+  const view = useWorkspaceStore((state) => state.workspaceView)
+  const isDirty = useWorkspaceStore((state) => state.isDirty)
+  const contentStatus = useWorkspaceStore((state) => state.contentStatus)
+  const markdownDraft = useWorkspaceStore((state) => state.markdownDraft)
+  const drawingDraft = useWorkspaceStore((state) => state.drawingDraft)
+  const saveActiveNote = useWorkspaceStore((state) => state.saveActiveNote)
+
+  useEffect(() => {
+    if (!isDirty || contentStatus === 'saving' || contentStatus === 'error') return
+    const timer = window.setTimeout(() => void saveActiveNote(), 1000)
+    return () => window.clearTimeout(timer)
+  }, [contentStatus, isDirty, markdownDraft, drawingDraft, saveActiveNote])
 
   return (
-    <div className="app-shell-bg h-svh overflow-hidden p-1 text-[var(--app-text)] sm:p-2 lg:p-3">
-        <div className="app-shell-frame relative mx-auto flex h-full max-w-[96rem] flex-col overflow-hidden rounded-[1.35rem] border border-white/12 shadow-[0_42px_120px_rgb(0_0_0_/_0.34)] lg:flex-row">
+    <div className="app-shell-bg h-dvh overflow-hidden text-[var(--app-text)]">
+        <div className="app-shell-frame relative flex h-full w-full flex-col overflow-hidden lg:flex-row">
           <Sidebar />
-          <EditorWorkspace />
+          <Suspense fallback={<div className="app-workspace min-w-0 flex-1" />}>
+            {view === 'dashboard' ? <Dashboard /> : <EditorWorkspace />}
+          </Suspense>
+          <LibraryDialogs />
+          <Toaster position="bottom-right" closeButton />
           <AnimatePresence>
             {settingsOpen ? (
               <motion.div

@@ -68,7 +68,7 @@ function App() {
     )
   } else {
     content = (
-      <motion.div className="h-svh" key={hasOnboarding ? 'app' : 'onboarding'} {...panelPresence}>
+      <motion.div className="h-dvh" key={hasOnboarding ? 'app' : 'onboarding'} {...panelPresence}>
         <Suspense fallback={<div className="app-shell-bg grid h-svh place-items-center text-sm font-bold text-[var(--app-muted)]">{translate('es', 'loading')}</div>}>
           {hasOnboarding ? <AppShell /> : <OnboardingPage />}
         </Suspense>
