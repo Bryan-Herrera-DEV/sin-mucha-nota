@@ -1,6 +1,23 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme inline {
+  --color-background: var(--app-panel);
+  --color-foreground: var(--app-text);
+  --color-card: var(--app-panel);
+  --color-card-foreground: var(--app-text);
+  --color-popover: var(--app-panel);
+  --color-popover-foreground: var(--app-text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: #fff;
+  --color-secondary: var(--app-panel-hover);
+  --color-secondary-foreground: var(--app-text);
+  --color-muted-foreground: var(--app-muted);
+  --color-accent-foreground: #fff;
+  --color-destructive: #e45b65;
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
   --color-cream: var(--cream);
   --color-cream-strong: var(--cream-strong);
   --color-paper: var(--paper);
@@ -15,6 +32,10 @@
 }
 
 :root {
+  --border: color-mix(in srgb, var(--app-text) 16%, transparent);
+  --popover: var(--app-panel);
+  --popover-foreground: var(--app-text);
+  --radius: 0.75rem;
   --cream: #fbf7ed;
   --cream-strong: #f1dfc4;
   --paper: #fffefa;
@@ -357,6 +378,21 @@ button {
 
 button:disabled {
   cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::selection {

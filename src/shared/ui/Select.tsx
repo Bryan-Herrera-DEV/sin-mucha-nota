@@ -31,13 +31,13 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
       <SelectPrimitive.Trigger
         aria-label={ariaLabel ?? placeholder}
         className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 rounded-xl border px-3 text-sm font-semibold shadow-[inset_0_1px_rgb(255_255_255_/_0.04)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-9 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-xl border px-3 text-sm font-semibold shadow-[inset_0_1px_rgb(255_255_255_/_0.04)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:cursor-not-allowed disabled:opacity-50',
           isLight ? 'border-line bg-paper-soft text-ink hover:bg-paper' : 'border-white/10 bg-[var(--app-panel-strong)] text-white hover:bg-white/8',
           className,
         )}
       >
         <SelectPrimitive.Value placeholder={placeholder}>
-          {selectedLabel ?? placeholder ?? value}
+          <span className="block min-w-0 truncate text-left" title={selectedLabel}>{selectedLabel ?? placeholder ?? value}</span>
         </SelectPrimitive.Value>
         <SelectPrimitive.Icon asChild>
           <ChevronDown className="shrink-0 text-[var(--app-muted)]" size={15} />
@@ -49,7 +49,7 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
             <SelectPrimitive.Content asChild forceMount position="popper" sideOffset={6}>
               <motion.div
                 className={cn(
-                  'z-50 max-h-72 min-w-[8rem] overflow-hidden rounded-xl border shadow-[0_18px_60px_rgb(0_0_0_/_0.38)]',
+                  'z-50 max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] min-w-[8rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border shadow-[0_18px_60px_rgb(0_0_0_/_0.38)]',
                   isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[var(--app-sidebar)] text-white',
                   contentClassName,
                 )}
@@ -59,7 +59,7 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
                 style={{ willChange: 'transform, opacity' }}
                 transition={smoothSpring}
               >
-                <SelectPrimitive.Viewport className="p-1">
+                <SelectPrimitive.Viewport className="max-h-72 overflow-y-auto p-1">
                   {options.map((option) => (
                     <SelectPrimitive.Item
                       className={cn(
@@ -67,6 +67,7 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
                         isLight ? 'data-[highlighted]:bg-paper-soft data-[highlighted]:text-ink' : 'data-[highlighted]:bg-white/10 data-[highlighted]:text-white',
                       )}
                       key={option.value}
+                      title={option.label}
                       value={option.value}
                     >
                       <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
@@ -74,7 +75,7 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
                           <Check size={14} />
                         </SelectPrimitive.ItemIndicator>
                       </span>
-                      <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                      <SelectPrimitive.ItemText className="min-w-0 truncate">{option.label}</SelectPrimitive.ItemText>
                     </SelectPrimitive.Item>
                   ))}
                 </SelectPrimitive.Viewport>
