@@ -1,8 +1,8 @@
 {
   "app": "sin-mucha-nota",
   "version": 1,
-  "exportedAt": "2026-09-28T17:55:03.729Z",
-  "updatedAt": "2026-09-28T17:28:55.293Z",
+  "exportedAt": "2026-09-28T19:12:21.317Z",
+  "updatedAt": "2026-09-28T19:11:59.578Z",
   "preferences": {
     "displayName": "Elias",
     "accentColor": "#d4a373",
@@ -107,17 +107,6 @@
       },
       "createdAt": "2026-08-05T17:49:32.146Z",
       "updatedAt": "2026-09-28T16:24:24.655Z"
-    },
-    {
-      "id": "note_4a8fbbc9-4e54-44d4-a4f2-ab7e650bbd55",
-      "title": "iNFO aaaaaaaaaaaaaaaiNFO aaaaaaaaaaaaaaaiNFO aaaaaaaaaaaaaaaiNFO aaaaaaaaaaaaaaaiNFO aaaaa",
-      "folderId": "folder_4cdfa805-c289-4c64-8078-be5f4aa151fa",
-      "contentRef": {
-        "markdownPath": "notes/note_4a8fbbc9-4e54-44d4-a4f2-ab7e650bbd55/markdown.md",
-        "drawingPath": "notes/note_4a8fbbc9-4e54-44d4-a4f2-ab7e650bbd55/drawing.excalidraw.json"
-      },
-      "createdAt": "2026-09-14T19:47:09.657Z",
-      "updatedAt": "2026-09-28T15:29:01.525Z"
     },
     {
       "id": "note_348cb9dc-49a9-47b1-9128-adbfcb4ed7d2",
