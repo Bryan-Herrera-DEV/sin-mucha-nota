@@ -7,7 +7,7 @@ import { getFolderPath } from '@/features/library/FolderPicker'
 import { NoteMenu } from '@/features/library/EntityMenus'
 import { Button } from '@/shared/ui/shadcn/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/ui/shadcn/card'
-import { StarGame } from './StarGame'
+import { MiniOsu } from './MiniOsu'
 
 export function Dashboard() {
   const { t } = useI18n()
@@ -56,7 +56,7 @@ export function Dashboard() {
             })}</div> : <div className="py-12 text-center"><FileText className="mx-auto size-8 text-muted-foreground" /><p className="mt-4 text-sm text-muted-foreground">{t('noRecentNotes')}</p><Button className="mt-4" type="button" onClick={() => open({ type: 'create-note', folderId: null })}><FilePlus2 />{t('newNote')}</Button></div>}
           </CardContent>
         </Card>
-        <StarGame />
+        <MiniOsu />
       </div>
     </main>
   )
