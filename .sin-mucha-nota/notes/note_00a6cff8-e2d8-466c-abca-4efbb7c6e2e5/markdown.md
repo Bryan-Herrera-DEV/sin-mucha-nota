@@ -1,1 +1,0 @@
-problemas en el paraíso
