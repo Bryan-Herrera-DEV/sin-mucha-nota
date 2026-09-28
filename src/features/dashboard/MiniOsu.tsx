@@ -5,13 +5,11 @@ import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { Button } from '@/shared/ui/shadcn/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/shadcn/card'
 import { loadGameScores, saveGameScore } from './gameScores'
-import styles from './MiniOsu.module.css'
+import { MiniOsuCanvas, type Point, type Target } from './MiniOsuCanvas'
 
 const DURATION = 20_000
 const TARGET_SIZES = { easy: 52, hard: 32 } as const
 type Difficulty = keyof typeof TARGET_SIZES
-type Point = { x: number; y: number }
-type Target = { current: Point; next: Point; number: number }
 // Keep both circles comfortably inside narrow phone screens.
 const positions = [28, 50, 72].flatMap((y) => [22, 50, 78].map((x) => ({ x, y })))
 
@@ -31,13 +29,11 @@ export function MiniOsu() {
   const [score, setScore] = useState(0)
   const [remaining, setRemaining] = useState(20)
   const [target, setTarget] = useState<Target | null>(null)
-  const [burst, setBurst] = useState<(Point & { number: number }) | null>(null)
   const [result, setResult] = useState('')
   const deadline = useRef(0)
   const points = useRef(0)
   const active = useRef(false)
   const currentTarget = useRef<Target | null>(null)
-  const targetButton = useRef<HTMLButtonElement>(null)
   const startButton = useRef<HTMLButtonElement>(null)
   const finish = useRef(() => {})
 
@@ -79,8 +75,7 @@ export function MiniOsu() {
   }, [running])
 
   useEffect(() => {
-    if (running) targetButton.current?.focus({ preventScroll: true })
-    else if (result) startButton.current?.focus({ preventScroll: true })
+    if (!running && result) startButton.current?.focus({ preventScroll: true })
   }, [running, result])
 
   function start() {
@@ -92,17 +87,16 @@ export function MiniOsu() {
     active.current = true
     currentTarget.current = first
     setScore(0); setRemaining(20); setTarget(first)
-    setBurst(null); setResult(''); setRunning(true)
+    setResult(''); setRunning(true)
   }
 
-  function hit() {
+  function hit(number: number) {
     const current = currentTarget.current
-    if (!active.current || !current || current.number !== target?.number) return
+    if (!active.current || !current || current.number !== number) return
     const now = performance.now()
     if (now >= deadline.current) { finish.current(); return }
     points.current += 1
     setScore(points.current)
-    setBurst({ ...current.current, number: current.number })
     play('tap')
     advance()
   }
@@ -131,31 +125,10 @@ export function MiniOsu() {
         </div>
         <div className="relative aspect-[4/3] max-h-72 overflow-hidden rounded-lg border border-border bg-[var(--app-panel-strong)]"
           style={{ backgroundImage: 'radial-gradient(var(--border) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-          {running && target ? <>
-            <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full">
-              <path d={`M ${target.current.x} ${target.current.y} Q 50 ${(target.current.y + target.next.y) / 2 - 12} ${target.next.x} ${target.next.y}`}
-                fill="none" className="stroke-primary/15" strokeWidth="6" vectorEffect="non-scaling-stroke" />
-              <path d={`M ${target.current.x} ${target.current.y} Q 50 ${(target.current.y + target.next.y) / 2 - 12} ${target.next.x} ${target.next.y}`}
-                fill="none" className="stroke-primary/70" strokeWidth="2" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />
-            </svg>
-            <div aria-hidden="true" className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center"
-              style={{ left: `${target.next.x}%`, top: `${target.next.y}%` }}>
-              <span className="grid place-items-center rounded-full border-2 border-dashed border-primary/60 bg-background/80 text-sm font-semibold text-muted-foreground"
-                style={{ width: targetSize, height: targetSize }}>{target.number + 1}</span>
-              <span className="absolute left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-muted-foreground">{t('gameNext')}</span>
-            </div>
-            {burst && <span key={burst.number} aria-hidden="true" className={`pointer-events-none absolute rounded-full border-2 border-primary ${styles.burst}`}
-              style={{ width: targetSize, height: targetSize, left: `calc(${burst.x}% - ${targetSize / 2}px)`, top: `calc(${burst.y}% - ${targetSize / 2}px)` }} />}
-            <button ref={targetButton} type="button" aria-label={`${t('gameTarget')} ${target.number}`} onClick={hit}
-              onKeyDown={(event) => { if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault() }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 touch-manipulation rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-              style={{ width: targetSize, height: targetSize, left: `${target.current.x}%`, top: `${target.current.y}%` }}>
-              <span className="relative grid size-full place-items-center rounded-full border-2 border-primary bg-primary text-sm font-bold tabular-nums text-primary-foreground shadow-[0_0_20px_var(--accent-soft)]">{target.number}</span>
-            </button>
-            <div className="pointer-events-none absolute inset-x-3 top-2 text-[11px] font-medium">
-              <span className="text-primary">{t('gameFollowTrail')}</span>
-            </div>
-          </> : <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 p-4 text-center">
+          {running && target ? <MiniOsuCanvas target={target} targetSize={targetSize}
+            nextLabel={t('gameNext')} trailLabel={t('gameFollowTrail')}
+            label={`${t('gameTarget')} ${target.number}. ${t('gameHint')}`} onHit={hit} />
+            : <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 p-4 text-center">
             <Crosshair className="size-7 text-primary" />
             <p className="text-sm font-medium" role="status">{result || t('gameReady')}</p>
             {!!result && <p className="text-2xl font-bold tabular-nums">{score} <span className="text-sm font-normal text-muted-foreground">{t(score === 1 ? 'gamePoint' : 'score').toLowerCase()}</span></p>}
