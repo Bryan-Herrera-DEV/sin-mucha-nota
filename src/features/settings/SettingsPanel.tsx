@@ -100,7 +100,8 @@ export function SettingsPanel() {
     return null
   }
 
-  const syncDecisionRepoName = pendingGithubRepoFullName ?? (githubConfig?.initialSyncStrategy ? githubConfig.repoFullName : null)
+  const hasSyncConflict = Boolean(githubSyncState?.requiresResolution)
+  const syncDecisionRepoName = pendingGithubRepoFullName ?? (githubConfig?.initialSyncStrategy || hasSyncConflict ? githubConfig?.repoFullName : null)
   const selectedRepoValue = pendingGithubRepoFullName ?? githubConfig?.repoFullName ?? 'no-repos'
 
   return (
@@ -330,8 +331,8 @@ export function SettingsPanel() {
 
               {syncDecisionRepoName ? (
                 <div className="rounded-2xl border border-[var(--accent)]/35 bg-[var(--accent-soft)] p-3">
-                  <p className="text-sm font-black text-white">{t('githubInitialSyncTitle')}</p>
-                  <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{t('githubInitialSyncBody')}</p>
+                  <p className="text-sm font-black text-white">{t(hasSyncConflict ? 'githubConflictTitle' : 'githubInitialSyncTitle')}</p>
+                  <p className="mt-2 text-xs leading-5 text-[var(--app-muted)]">{t(hasSyncConflict ? 'githubConflictBody' : 'githubInitialSyncBody')}</p>
                   <p className="mt-2 truncate text-xs font-black text-white">{syncDecisionRepoName}</p>
                   <div className="mt-3 grid gap-2">
                     <Button
@@ -385,7 +386,7 @@ export function SettingsPanel() {
                   {t('githubLoadRepos')}
                 </Button>
                 <Button
-                  disabled={!githubConfig || Boolean(pendingGithubRepoFullName)}
+                  disabled={!githubConfig || Boolean(pendingGithubRepoFullName) || hasSyncConflict}
                   onClick={() => {
                     play('save')
                     syncGithubNow()

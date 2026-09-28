@@ -3,6 +3,18 @@ const GITHUB_OAUTH_URL = 'https://github.com/login/oauth'
 const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
 const DEV_GITHUB_OAUTH_PROXY_BASE = '/github-oauth'
 
+export class GithubApiError extends Error {
+  readonly status: number
+  readonly path: string
+
+  constructor(message: string, status: number, path: string) {
+    super(message)
+    this.name = 'GithubApiError'
+    this.status = status
+    this.path = path
+  }
+}
+
 export type GithubDeviceCodeResponse = {
   device_code: string
   user_code: string
@@ -261,6 +273,8 @@ function getGithubOAuthProxyBaseUrl(): string {
 
 async function fetchGithubApi<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${GITHUB_API_URL}${path}`, {
+    // Branch refs are mutable: never build a commit on a cached HEAD.
+    cache: 'no-store',
     ...init,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -274,7 +288,7 @@ async function fetchGithubApi<T>(accessToken: string, path: string, init?: Reque
   if (!response.ok) {
     const message = await readGithubError(response)
 
-    throw new Error(message)
+    throw new GithubApiError(message, response.status, path)
   }
 
   if (response.status === 204) {

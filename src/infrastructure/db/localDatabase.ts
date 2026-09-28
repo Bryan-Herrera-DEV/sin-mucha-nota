@@ -60,6 +60,7 @@ export type GithubSyncState = {
   lastSyncedAt: ISODate | null
   lastDirection: 'pull' | 'push' | 'merge' | 'none' | null
   lastError: string | null
+  requiresResolution?: boolean
   remoteUpdatedAt: ISODate | null
   updatedAt: ISODate
 }

@@ -35,6 +35,7 @@ import {
   getGithubBranchRef,
   getGithubCommit,
   getGithubTree,
+  GithubApiError,
   updateGithubBranchRef,
   type GithubTreeItem,
   type GithubTreeUpdateEntry,
@@ -43,6 +44,8 @@ import { AppError, reportAppError } from '@/shared/lib/appError'
 
 const WORKSPACE_FILE_NAME = 'workspace.json'
 const GITHUB_COMMIT_MESSAGE = 'sync: actualizar notas'
+const MAX_REF_UPDATE_ATTEMPTS = 3
+let syncInFlight: Promise<GithubSyncResult> | null = null
 
 export type GithubSyncResult = {
   direction: 'pull' | 'push' | 'merge' | 'none'
@@ -80,13 +83,29 @@ type SyncFile = {
   content: string
 }
 
-export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
+export function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
+  if (syncInFlight) return syncInFlight
+  // Workers in separate tabs share IndexedDB, but not their `syncing` flag.
+  const run = () => synchronizeGithubWorkspace()
+  syncInFlight = (typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request('sin-mucha-nota:github-sync', run)
+    : run()).finally(() => { syncInFlight = null })
+  return syncInFlight
+}
+
+async function synchronizeGithubWorkspace(): Promise<GithubSyncResult> {
   const [auth, config] = await Promise.all([loadGithubAuth(), loadGithubConfig()])
 
   if (!auth || !config?.enabled) {
-    const state = await writeSyncState({ status: 'disabled', lastDirection: 'none', lastError: null })
+    const state = await writeSyncState({ status: 'disabled', lastDirection: 'none', lastError: null, requiresResolution: false })
 
     return { direction: 'none', workspaceChanged: false, state }
+  }
+
+  const previousState = await loadGithubSyncState()
+  if (previousState?.requiresResolution && !config.initialSyncStrategy) {
+    // Never let the next automatic pull erase the local version after a conflict.
+    return { direction: 'none', workspaceChanged: false, state: previousState }
   }
 
   await writeSyncState({ status: 'syncing', lastDirection: null, lastError: null })
@@ -97,7 +116,7 @@ export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
     const remoteDocument = remoteSnapshot.document
 
     if (config.initialSyncStrategy) {
-      return performGithubInitialWorkspaceSync(auth.accessToken, config, localSnapshot, remoteSnapshot, config.initialSyncStrategy)
+      return await performGithubInitialWorkspaceSync(auth.accessToken, config, localSnapshot, remoteSnapshot, config.initialSyncStrategy)
     }
 
     const localUpdatedAt = toTime(localSnapshot.document.updatedAt)
@@ -126,7 +145,12 @@ export async function performGithubWorkspaceSync(): Promise<GithubSyncResult> {
     return { direction: 'none', workspaceChanged: false, state }
   } catch (error) {
     const appError = reportAppError(error, { scope: 'github.sync', operation: 'performGithubWorkspaceSync' })
-    const state = await writeSyncState({ status: 'error', lastDirection: null, lastError: appError.userMessage })
+    if (appError.code === 'github.workspace_conflict') {
+      // A previous initial-sync choice must not silently resolve a new conflict.
+      await clearGithubInitialSyncStrategy()
+    }
+    const state = await writeSyncState({ status: 'error', lastDirection: null, lastError: appError.userMessage,
+      requiresResolution: appError.code === 'github.workspace_conflict' || Boolean(previousState?.requiresResolution) })
 
     return { direction: 'none', workspaceChanged: false, state }
   }
@@ -172,11 +196,17 @@ async function performGithubInitialWorkspaceSync(
 
   await writeSyncState({ status: remoteSnapshot.document ? 'merging' : 'pushing', lastDirection: remoteSnapshot.document ? 'merge' : 'push', lastError: null, remoteUpdatedAt: remoteSnapshot.document?.updatedAt ?? null })
 
+  await pushLocalWorkspaceSnapshot(accessToken, config, mergedSnapshot, remoteSnapshot)
   if (remoteSnapshot.document) {
+    const currentLocalSnapshot = await createLocalWorkspaceSnapshot(config)
+    if (currentLocalSnapshot.document.updatedAt !== localSnapshot.document.updatedAt) {
+      // The published merge is safe, but newer local edits must not be replaced.
+      throw new AppError('La fusión se publicó, pero hay cambios locales nuevos. Elige cómo fusionarlos en Configuración → GitHub.', {
+        scope: 'github.sync', operation: 'initialMerge', code: 'github.workspace_conflict', severity: 'warning',
+      })
+    }
     await applyRemoteWorkspaceSnapshot(mergedSnapshot.document, createSyncFileMap(mergedSnapshot.files), config)
   }
-
-  await pushLocalWorkspaceSnapshot(accessToken, config, mergedSnapshot, remoteSnapshot)
   await clearGithubInitialSyncStrategy()
 
   const state = await writeSyncState({ status: 'synced', lastDirection: remoteSnapshot.document ? 'merge' : 'push', lastError: null, remoteUpdatedAt: mergedSnapshot.document.updatedAt })
@@ -274,6 +304,29 @@ async function pushLocalWorkspaceSnapshot(accessToken: string, config: GithubSyn
     return
   }
 
+  let baseSnapshot = remoteSnapshot
+  const blobShas = new Map<string, string>()
+  for (let attempt = 0; attempt < MAX_REF_UPDATE_ATTEMPTS; attempt += 1) {
+    try {
+      await publishWorkspaceSnapshot(accessToken, config, localSnapshot, baseSnapshot, blobShas)
+      return
+    } catch (error) {
+      if (!isRefUpdateConflict(error)) throw error
+      const latestSnapshot = preserveLocalSoundVolume(await readRemoteWorkspaceSnapshot(accessToken, config), localSnapshot.document.preferences?.soundVolume)
+      if (!sameRemoteWorkspace(baseSnapshot, latestSnapshot, config)) {
+        throw new AppError('Las notas del repo cambiaron mientras se sincronizaban. Tus datos locales siguen intactos. Abre Configuración → GitHub para elegir cómo resolverlo.', {
+          scope: 'github.sync', operation: 'pushWorkspace', code: 'github.workspace_conflict', severity: 'warning',
+        })
+      }
+      baseSnapshot = latestSnapshot
+    }
+  }
+  throw new AppError('La rama sigue recibiendo cambios. No se sobrescribió su historial; la sincronización volverá a intentarlo automáticamente.', {
+    scope: 'github.sync', operation: 'pushWorkspace', code: 'github.branch_busy', severity: 'warning',
+  })
+}
+
+async function publishWorkspaceSnapshot(accessToken: string, config: GithubSyncConfig, localSnapshot: LocalWorkspaceSnapshot, remoteSnapshot: RemoteWorkspaceSnapshot, blobShas: Map<string, string>): Promise<void> {
   if (!remoteSnapshot.headSha || !remoteSnapshot.treeSha) {
     throw new Error('No se pudo leer la rama de GitHub para sincronizar')
   }
@@ -282,9 +335,13 @@ async function pushLocalWorkspaceSnapshot(accessToken: string, config: GithubSyn
   const treeEntries: GithubTreeUpdateEntry[] = []
 
   for (const file of localSnapshot.files) {
-    const blob = await createGithubBlob(accessToken, config.owner, config.repo, file.content)
-
-    treeEntries.push({ path: file.path, mode: '100644', type: 'blob', sha: blob.sha })
+    let sha = blobShas.get(file.path)
+    if (!sha) {
+      const blob = await createGithubBlob(accessToken, config.owner, config.repo, file.content)
+      sha = blob.sha
+      blobShas.set(file.path, sha)
+    }
+    treeEntries.push({ path: file.path, mode: '100644', type: 'blob', sha })
   }
 
   for (const remotePath of remoteSnapshot.remotePaths) {
@@ -293,10 +350,30 @@ async function pushLocalWorkspaceSnapshot(accessToken: string, config: GithubSyn
     }
   }
 
+  // Uploading many blobs can take long enough for another device to advance HEAD.
+  const latestRef = await getGithubBranchRef(accessToken, config.owner, config.repo, config.branch)
+  if (latestRef.object.sha !== remoteSnapshot.headSha) {
+    throw new GithubApiError('Update is not a fast forward', 409, '/git/refs/heads/')
+  }
   const tree = await createGithubTree(accessToken, config.owner, config.repo, remoteSnapshot.treeSha, treeEntries)
   const commit = await createGithubCommit(accessToken, config.owner, config.repo, GITHUB_COMMIT_MESSAGE, tree.sha, remoteSnapshot.headSha)
 
   await updateGithubBranchRef(accessToken, config.owner, config.repo, config.branch, commit.sha)
+}
+
+function isRefUpdateConflict(error: unknown): boolean {
+  return error instanceof GithubApiError && error.path.includes('/git/refs/heads/')
+    && (error.status === 409 || error.status === 422 && /not a fast forward/i.test(error.message))
+}
+
+function sameRemoteWorkspace(first: RemoteWorkspaceSnapshot, second: RemoteWorkspaceSnapshot, config: GithubSyncConfig): boolean {
+  const documentContent = (document: GithubWorkspaceDocument | null) => document ? JSON.stringify({ ...document, exportedAt: null }) : null
+  if (documentContent(first.document) !== documentContent(second.document)
+    || first.remotePaths.size !== second.remotePaths.size
+    || [...first.remotePaths].some((path) => !second.remotePaths.has(path))
+    || first.files.size !== second.files.size) return false
+  const workspacePath = createWorkspacePath(config)
+  return [...first.files].every(([path, content]) => path === workspacePath || content === second.files.get(path))
 }
 
 async function initializeEmptyRepository(accessToken: string, config: GithubSyncConfig, localSnapshot: LocalWorkspaceSnapshot): Promise<void> {
@@ -460,6 +537,7 @@ async function writeSyncState(patch: Partial<Omit<GithubSyncState, 'id' | 'updat
     lastSyncedAt: patch.status === 'synced' ? nowIso() : (patch.lastSyncedAt ?? current?.lastSyncedAt ?? null),
     lastDirection: patch.lastDirection === undefined ? (current?.lastDirection ?? null) : patch.lastDirection,
     lastError: patch.lastError === undefined ? (current?.lastError ?? null) : patch.lastError,
+    requiresResolution: patch.status === 'synced' ? false : (patch.requiresResolution ?? current?.requiresResolution ?? false),
     remoteUpdatedAt: patch.remoteUpdatedAt === undefined ? (current?.remoteUpdatedAt ?? null) : patch.remoteUpdatedAt,
   })
 }
