@@ -8,6 +8,8 @@ import { loadGameScores, saveGameScore } from './gameScores'
 import styles from './MiniOsu.module.css'
 
 const DURATION = 20_000
+const TARGET_SIZES = { easy: 52, hard: 32 } as const
+type Difficulty = keyof typeof TARGET_SIZES
 type Point = { x: number; y: number }
 type Target = { current: Point; next: Point; number: number }
 // Keep both circles comfortably inside narrow phone screens.
@@ -23,6 +25,8 @@ export function MiniOsu() {
   const { t } = useI18n()
   const play = useSoundFeedback()
   const [scores, setScores] = useState(loadGameScores)
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy')
+  const targetSize = TARGET_SIZES[difficulty]
   const [running, setRunning] = useState(false)
   const [score, setScore] = useState(0)
   const [remaining, setRemaining] = useState(20)
@@ -110,6 +114,17 @@ export function MiniOsu() {
         <CardDescription className="leading-6">{t('gameBody')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">{t('gameDifficulty')}</p>
+          <div role="group" aria-label={t('gameDifficulty')} className="flex gap-2">
+            {(['easy', 'hard'] as const).map((level) => <Button key={level} type="button" size="sm"
+              className="flex-1" variant={difficulty === level ? 'default' : 'outline'}
+              aria-pressed={difficulty === level} disabled={running} onClick={() => setDifficulty(level)}>
+              {t(level === 'easy' ? 'gameEasy' : 'gameHard')}
+            </Button>)}
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">{t('gameDifficultyHint')}</p>
+        </div>
         <div className="flex items-center justify-between gap-2 rounded-lg bg-secondary/50 p-3 text-sm">
           <span className="flex items-center gap-2"><Trophy className="size-4 text-primary" />{t('bestScore')} <strong>{scores.best}</strong></span>
           <span className="flex items-center gap-2 tabular-nums"><Timer className="size-4 text-muted-foreground" />{remaining}s</span>
@@ -125,16 +140,17 @@ export function MiniOsu() {
             </svg>
             <div aria-hidden="true" className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center"
               style={{ left: `${target.next.x}%`, top: `${target.next.y}%` }}>
-              <span className="grid size-11 place-items-center rounded-full border-2 border-dashed border-primary/60 bg-background/80 text-sm font-semibold text-muted-foreground">{target.number + 1}</span>
+              <span className="grid place-items-center rounded-full border-2 border-dashed border-primary/60 bg-background/80 text-sm font-semibold text-muted-foreground"
+                style={{ width: targetSize, height: targetSize }}>{target.number + 1}</span>
               <span className="absolute left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-muted-foreground">{t('gameNext')}</span>
             </div>
-            {burst && <span key={burst.number} aria-hidden="true" className={`pointer-events-none absolute size-[52px] rounded-full border-2 border-primary ${styles.burst}`}
-              style={{ left: `calc(${burst.x}% - 26px)`, top: `calc(${burst.y}% - 26px)` }} />}
+            {burst && <span key={burst.number} aria-hidden="true" className={`pointer-events-none absolute rounded-full border-2 border-primary ${styles.burst}`}
+              style={{ width: targetSize, height: targetSize, left: `calc(${burst.x}% - ${targetSize / 2}px)`, top: `calc(${burst.y}% - ${targetSize / 2}px)` }} />}
             <button ref={targetButton} type="button" aria-label={`${t('gameTarget')} ${target.number}`} onClick={hit}
               onKeyDown={(event) => { if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault() }}
-              className="absolute size-[52px] -translate-x-1/2 -translate-y-1/2 touch-manipulation rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-              style={{ left: `${target.current.x}%`, top: `${target.current.y}%` }}>
-              <span className="relative grid size-full place-items-center rounded-full border-2 border-primary bg-primary text-lg font-bold tabular-nums text-primary-foreground shadow-[0_0_20px_var(--accent-soft)]">{target.number}</span>
+              className="absolute -translate-x-1/2 -translate-y-1/2 touch-manipulation rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+              style={{ width: targetSize, height: targetSize, left: `${target.current.x}%`, top: `${target.current.y}%` }}>
+              <span className="relative grid size-full place-items-center rounded-full border-2 border-primary bg-primary text-sm font-bold tabular-nums text-primary-foreground shadow-[0_0_20px_var(--accent-soft)]">{target.number}</span>
             </button>
             <div className="pointer-events-none absolute inset-x-3 top-2 text-[11px] font-medium">
               <span className="text-primary">{t('gameFollowTrail')}</span>
