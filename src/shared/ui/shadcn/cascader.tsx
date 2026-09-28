@@ -17,12 +17,13 @@ type CascaderProps = {
   value: string[]
   onChange(value: string[], selectedOptions: CascaderOption[]): void
   placeholder: string
+  title?: string
   disabled?: boolean
   className?: string
   displayRender?(labels: string[], options: CascaderOption[]): ReactNode
 }
 
-export function Cascader({ options, value, onChange, placeholder, disabled, className, displayRender }: CascaderProps) {
+export function Cascader({ options, value, onChange, placeholder, title, disabled, className, displayRender }: CascaderProps) {
   const [open, setOpen] = useState(false)
   const [expandedPath, setExpandedPath] = useState<string[]>([])
   const [focus, setFocus] = useState([0, 0])
@@ -89,7 +90,7 @@ export function Cascader({ options, value, onChange, placeholder, disabled, clas
   }
 
   return (
-    <Popover open={open} onOpenChange={(nextOpen) => {
+    <Popover modal open={open} onOpenChange={(nextOpen) => {
       setOpen(nextOpen)
       if (nextOpen) {
         setExpandedPath(value.slice(0, -1))
@@ -98,7 +99,7 @@ export function Cascader({ options, value, onChange, placeholder, disabled, clas
     }}>
       <PopoverTrigger asChild>
         <button type="button" role="combobox" aria-label={placeholder} aria-expanded={open} aria-haspopup="listbox" disabled={disabled}
-          title={labels.join(' / ')}
+          title={title ?? labels.join(' / ')}
           className={cn('flex h-10 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50', className)}>
           <span className="min-w-0 flex-1 truncate text-left">{display || placeholder}</span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />

@@ -30,7 +30,7 @@ export function FolderPicker({ value, onChange, topLevel = false, className, dis
   const folders = useWorkspaceStore((state) => state.folders)
   const { t } = useI18n()
   const rootLabel = t(topLevel ? 'topLevel' : 'rootFolder')
-  const { options, selected } = useMemo(() => {
+  const { options, selected, breadcrumb } = useMemo(() => {
     const childrenByParent = new Map<FolderId | null, FolderEntity[]>()
     for (const folder of folders) {
       const children = childrenByParent.get(folder.parentId) ?? []
@@ -47,12 +47,13 @@ export function FolderPicker({ value, onChange, topLevel = false, className, dis
         }
       })
     }
-    const selected = getFolderPath(folders, value).map((folder) => String(folder.id))
+    const path = getFolderPath(folders, value)
+    const selected = path.map((folder) => String(folder.id))
     if (value && childrenByParent.get(value)?.length) selected.push(`self:${value}`)
-    return { options: [{ value: 'root', label: rootLabel }, ...branch(null)], selected: value ? selected : ['root'] }
+    return { options: [{ value: 'root', label: rootLabel }, ...branch(null)], selected: value ? selected : ['root'], breadcrumb: path.map((folder) => folder.name).join(' / ') || rootLabel }
   }, [folders, value, rootLabel, t])
 
-  return <Cascader options={options} value={selected} placeholder={t('location')} className={className} disabled={disabled}
+  return <Cascader options={options} value={selected} placeholder={t('location')} title={breadcrumb} className={className} disabled={disabled}
     displayRender={(labels, selectedOptions) => labels.filter((_, index) => !selectedOptions[index].value.startsWith('self:')).join(' / ')}
     onChange={(path) => {
       const destination = path.at(-1)

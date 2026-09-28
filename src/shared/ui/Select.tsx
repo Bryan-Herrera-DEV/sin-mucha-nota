@@ -36,7 +36,7 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={placeholder}>
+        <SelectPrimitive.Value className="min-w-0 flex-1 overflow-hidden" placeholder={placeholder}>
           <span className="block min-w-0 truncate text-left" title={selectedLabel}>{selectedLabel ?? placeholder ?? value}</span>
         </SelectPrimitive.Value>
         <SelectPrimitive.Icon asChild>

@@ -220,6 +220,10 @@ body[data-font='rounded'] {
   box-sizing: border-box;
 }
 
+@layer base {
+  * { border-color: var(--border); }
+}
+
 html {
   height: 100%;
   overflow: hidden;
@@ -360,11 +364,10 @@ textarea {
   overflow: hidden;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+@layer base {
+  button, input, textarea, select {
+    font: inherit;
+  }
 }
 
 .markdown-editor,
@@ -380,9 +383,9 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
+button:not([data-slot]):focus-visible,
+input:not([data-slot]):focus-visible,
+textarea:not([data-slot]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }

@@ -1,324 +1,111 @@
-import { memo, startTransition, useCallback, useMemo, useState, type ComponentType } from 'react'
-import {
-  BookOpen,
-  Briefcase,
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  Folder,
-  Lightbulb,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plane,
-  Plus,
-  Settings,
-  Trash2,
-  Utensils,
-  UserRound,
-} from 'lucide-react'
-import { folderIconOptions, type Folder as FolderEntity, type FolderIcon, type FolderId } from '@/domain/folders/folder'
+import { memo, startTransition, useCallback, useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight, FileText, Home, Menu, PanelLeftClose, PanelLeftOpen, Search, Settings, X } from 'lucide-react'
+import type { Folder as FolderEntity, FolderId } from '@/domain/folders/folder'
 import { useI18n } from '@/app/i18n/useI18n'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { cn } from '@/shared/lib/cn'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 import { createFolderTreeIndex, type FolderTreeIndex } from '@/application/workspace/noteFilters'
-
-const folderIconMap: Record<FolderIcon, ComponentType<{ size?: number; className?: string }>> = {
-  folder: Folder,
-  project: Briefcase,
-  book: BookOpen,
-  idea: Lightbulb,
-  travel: Plane,
-  meeting: CalendarDays,
-  recipe: Utensils,
-  personal: UserRound,
-}
+import { Button } from '@/shared/ui/shadcn/button'
+import { Input } from '@/shared/ui/shadcn/input'
+import { CreateMenu } from './CreateMenu'
+import { FolderMenu } from './EntityMenus'
+import { folderIconMap } from './folderIcons'
 
 export function Sidebar() {
   const { t } = useI18n()
   const folders = useWorkspaceStore((state) => state.folders)
   const notes = useWorkspaceStore((state) => state.notes)
   const activeFolderId = useWorkspaceStore((state) => state.activeFolderId)
+  const view = useWorkspaceStore((state) => state.workspaceView)
   const preferences = useWorkspaceStore((state) => state.preferences)
   const search = useWorkspaceStore((state) => state.search)
   const selectFolder = useWorkspaceStore((state) => state.selectFolder)
-  const createFolder = useWorkspaceStore((state) => state.createFolder)
-  const deleteFolder = useWorkspaceStore((state) => state.deleteFolder)
+  const setView = useWorkspaceStore((state) => state.setWorkspaceView)
   const setSearch = useWorkspaceStore((state) => state.setSearch)
   const setSettingsOpen = useWorkspaceStore((state) => state.setSettingsOpen)
-  const sidebarCollapsed = useWorkspaceStore((state) => state.sidebarCollapsed)
-  const setSidebarCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed)
-  const [folderName, setFolderName] = useState('')
-  const [folderIcon, setFolderIcon] = useState<FolderIcon>('folder')
+  const collapsed = useWorkspaceStore((state) => state.sidebarCollapsed)
+  const setCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const folderIndex = useMemo(() => createFolderTreeIndex(folders, notes), [folders, notes])
   const play = useSoundFeedback()
   const handleSelectFolder = useCallback((folderId: FolderId) => {
-    selectFolder(folderId)
-    play('open')
-  }, [play, selectFolder])
+    selectFolder(folderId); setSearch(''); setMobileOpen(false); play('open')
+  }, [play, selectFolder, setSearch])
+  function home() { setView('dashboard'); setSearch(''); setMobileOpen(false); play('open') }
+  function allNotes() { selectFolder(null); setSearch(''); setMobileOpen(false); play('open') }
 
   return (
-    <>
-      {sidebarCollapsed ? (
-      <aside className="app-sidebar flex min-h-0 w-full flex-row items-center gap-2 border-b border-white/10 px-3 py-2 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:h-full lg:w-[4.6rem] lg:flex-col lg:border-b-0 lg:border-r lg:py-3">
-        <button
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/8 text-white transition hover:bg-white/12"
-          onClick={() => {
-            play('open')
-            setSidebarCollapsed(false)
-          }}
-          title="Expandir menu"
-          type="button"
-        >
-          <PanelLeftOpen size={15} />
-        </button>
-        <button
-          className={cn(
-            'grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 transition hover:bg-white/12 hover:text-white',
-            activeFolderId === null ? 'bg-white/10 text-white' : 'text-[#d8e5d9]',
-          )}
-          onClick={() => {
-            selectFolder(null)
-            setSearch('')
-            play('open')
-          }}
-          title={t('allNotes')}
-          type="button"
-        >
-          <FileText size={15} />
-        </button>
-        <div className="flex min-w-0 flex-1 gap-2 overflow-auto lg:w-full lg:flex-col lg:items-center">
-            {folderIndex.rootFolders.map((folder) => {
-              const FolderIcon = folderIconMap[folder.icon]
-
-              return (
-                <button
-                  className={cn(
-                    'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#d8e5d9] transition hover:bg-white/10 hover:text-white',
-                    activeFolderId === folder.id && 'bg-white/12 text-white',
-                  )}
-                  key={folder.id}
-                  onClick={() => {
-                    selectFolder(folder.id)
-                    play('open')
-                  }}
-                  title={folder.name}
-                  type="button"
-                >
-                  <FolderIcon size={15} />
-                </button>
-              )
-            })}
+    <aside className={cn('app-sidebar flex w-full shrink-0 flex-col border-b border-border lg:h-full lg:border-b-0 lg:border-r', collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64')}>
+      <div className="flex h-14 shrink-0 items-center gap-2 px-3 lg:hidden">
+        <button type="button" onClick={home} className="min-w-0 flex-1 truncate text-left font-bold tracking-tight" data-workspace-focus>sin mucha nota</button>
+        <Button type="button" variant="ghost" size="icon" aria-label={t('dashboard')} onClick={home}><Home /></Button>
+        <CreateMenu compact />
+        <Button type="button" variant="ghost" size="icon" aria-label={t('folders')} aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X /> : <Menu />}</Button>
+      </div>
+      {collapsed && <div className="hidden h-full flex-col items-center gap-3 p-3 lg:flex">
+        <Button type="button" variant="ghost" size="icon" aria-label="Expandir menú" title="Expandir menú" onClick={() => setCollapsed(false)}><PanelLeftOpen /></Button>
+        <Button type="button" variant={view === 'dashboard' ? 'secondary' : 'ghost'} size="icon" aria-label={t('dashboard')} title={t('dashboard')} onClick={home} data-workspace-focus><Home /></Button>
+        <CreateMenu compact />
+        <Button type="button" variant={view === 'notes' && !activeFolderId ? 'secondary' : 'ghost'} size="icon" aria-label={t('allNotes')} title={t('allNotes')} onClick={allNotes}><FileText /></Button>
+        <div className="min-h-0 flex-1 space-y-2 overflow-auto">
+          {folderIndex.rootFolders.map((folder) => {
+            const Icon = folderIconMap[folder.icon]
+            return <FolderMenu key={folder.id} folder={folder}><Button type="button" variant={view === 'notes' && activeFolderId === folder.id ? 'secondary' : 'ghost'} size="icon" title={folder.name} aria-label={folder.name} onClick={() => handleSelectFolder(folder.id)}><Icon size={16} /></Button></FolderMenu>
+          })}
         </div>
-        <button
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--app-muted)] transition hover:bg-white/10 hover:text-white"
-          onClick={() => {
-            play('open')
-            setSettingsOpen(true)
-          }}
-          title={t('settings')}
-          type="button"
-        >
-          <Settings size={15} />
-        </button>
-      </aside>
-      ) : (
-    <aside className="app-sidebar flex min-h-0 flex-col border-b border-white/10 px-3 py-3 shadow-[inset_-1px_0_rgb(255_255_255_/_0.06)] lg:w-[16.5rem] lg:border-b-0 lg:border-r">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-        <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
-        <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-        <button
-          className="ml-auto grid h-8 w-8 place-items-center rounded-full text-[var(--app-muted)] transition hover:bg-white/10 hover:text-white"
-          onClick={() => {
-            play('open')
-            setSidebarCollapsed(true)
-          }}
-          title="Colapsar menu"
-          type="button"
-        >
-          <PanelLeftClose size={15} />
+        <Button type="button" variant="ghost" size="icon" aria-label={t('settings')} title={t('settings')} onClick={() => setSettingsOpen(true)}><Settings /></Button>
+      </div>}
+      <div className={cn('min-h-0 flex-col gap-4 p-3', mobileOpen ? 'flex max-h-[60dvh]' : 'hidden', collapsed ? 'lg:hidden' : 'lg:flex lg:h-full lg:max-h-none')}>
+        <div className="hidden items-center justify-between gap-2 lg:flex">
+          <button className="min-w-0 truncate text-sm font-bold tracking-tight" type="button" onClick={home}>sin mucha nota</button>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label="Colapsar menú" title="Colapsar menú" onClick={() => setCollapsed(true)}><PanelLeftClose /></Button>
+        </div>
+        <nav className="space-y-1" aria-label={t('appName')}>
+          <Button type="button" variant={view === 'dashboard' ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={home} data-workspace-focus><Home />{t('dashboard')}</Button>
+          <Button type="button" variant={view === 'notes' && activeFolderId === null ? 'secondary' : 'ghost'} className="w-full justify-start" onClick={allNotes}><FileText />{t('allNotes')}</Button>
+        </nav>
+        <CreateMenu />
+        <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
+          <Input aria-label={t('searchPlaceholder')} className="pl-9" placeholder={t('searchPlaceholder')} value={search} onChange={(event) => {
+            const value = event.target.value
+            setView('notes')
+            startTransition(() => setSearch(value))
+          }} />
+        </div>
+        <section className="min-h-0 flex-1 overflow-auto" aria-label={t('folders')}>
+          <div className="mb-2 flex items-center justify-between px-2 text-xs font-medium text-muted-foreground"><span>{t('folders')}</span><span>{folders.length}</span></div>
+          {folderIndex.rootFolders.map((folder) => <FolderNode activeFolderId={view === 'notes' ? activeFolderId : null} folder={folder} folderIndex={folderIndex} key={folder.id} onSelect={handleSelectFolder} depth={0} />)}
+          {!folders.length && <p className="px-2 py-3 text-xs leading-5 text-muted-foreground">{t('createFolderBody')}</p>}
+        </section>
+        <button className="flex shrink-0 items-center gap-3 rounded-md border border-border p-3 text-left hover:bg-secondary" onClick={() => { play('open'); setSettingsOpen(true); setMobileOpen(false) }} type="button">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{preferences?.displayName.slice(0, 1).toUpperCase()}</span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{preferences?.displayName}</span><span className="block text-xs text-muted-foreground">{t('settings')}</span></span>
+          <Settings className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </div>
-
-      <nav className="space-y-2">
-        <button
-          className={cn(
-            'flex w-full items-center gap-3 rounded-full border px-3 py-2 text-left text-sm font-bold transition',
-            activeFolderId === null
-              ? 'border-white/15 bg-white/10 text-white shadow-[inset_0_1px_rgb(255_255_255_/_0.08)]'
-              : 'border-transparent text-[#d8e5d9] hover:bg-white/8 hover:text-white',
-          )}
-          onClick={() => {
-            selectFolder(null)
-            setSearch('')
-            play('open')
-          }}
-          type="button"
-        >
-          <FileText size={16} />
-          {t('allNotes')}
-        </button>
-      </nav>
-
-      <label className="relative mt-4 block">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--app-muted)]">⌕</span>
-        <input
-          className="h-9 w-full rounded-full border border-white/10 bg-black/15 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-          placeholder={t('searchPlaceholder')}
-          value={search}
-          onChange={(event) => {
-            const value = event.target.value
-            startTransition(() => setSearch(value))
-          }}
-        />
-      </label>
-
-      <div className="my-4 h-px bg-white/10" />
-
-      <section className="min-h-0 flex-1 overflow-auto pr-1">
-        <div className="mb-2 flex items-center justify-between px-1 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[var(--app-muted)]">
-          <span>{t('folders')}</span>
-          <span>{folders.length}</span>
-        </div>
-
-        <div className="space-y-1">
-            {folderIndex.rootFolders.map((folder) => (
-              <FolderNode
-                activeFolderId={activeFolderId}
-                deleteFolder={deleteFolder}
-                folder={folder}
-                folderIndex={folderIndex}
-                key={folder.id}
-                onSelect={handleSelectFolder}
-              />
-            ))}
-        </div>
-      </section>
-
-      <form
-        className="mt-3 rounded-[1.15rem] border border-white/10 bg-black/15 p-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-
-          if (!folderName.trim()) {
-            return
-          }
-
-          play('save')
-          void createFolder(folderName, activeFolderId, folderIcon)
-          setFolderName('')
-          setFolderIcon('folder')
-        }}
-      >
-        <div className="mb-2 space-y-2">
-          <div className="grid grid-cols-8 gap-1" role="radiogroup" aria-label="Folder icon">
-            {folderIconOptions.map((option) => {
-              const Icon = folderIconMap[option.value]
-
-              return (
-                <button
-                  aria-label={option.label}
-                  aria-checked={folderIcon === option.value}
-                  className={cn(
-                    'grid h-8 place-items-center rounded-full border text-[var(--app-muted)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] hover:text-white',
-                    folderIcon === option.value ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-white' : 'border-white/10 bg-[var(--app-panel)]',
-                  )}
-                  key={option.value}
-                  onClick={() => setFolderIcon(option.value)}
-                  role="radio"
-                  title={option.label}
-                  type="button"
-                >
-                  <Icon size={15} />
-                </button>
-              )
-            })}
-          </div>
-          <input
-            className="w-full h-9 rounded-full border border-white/10 bg-[var(--app-panel)] px-3 text-sm text-white outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)]"
-            placeholder={activeFolderId ? t('newSubfolder') : t('folderNamePlaceholder')}
-            value={folderName}
-            onChange={(event) => setFolderName(event.target.value)}
-          />
-        </div>
-        <button className="flex h-9 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent)] text-sm font-black text-white transition hover:bg-[var(--accent-strong)]" type="submit">
-          <Plus size={16} />
-          {t('newFolder')}
-        </button>
-      </form>
-
-      <button
-        className="mt-3 flex items-center gap-3 rounded-[1.1rem] border border-white/10 bg-white/8 p-2.5 text-left"
-        onClick={() => {
-          play('open')
-          setSettingsOpen(true)
-        }}
-        type="button"
-      >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--accent)] text-sm font-black text-white">
-          {preferences?.displayName.slice(0, 1).toUpperCase()}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-black text-white">{preferences?.displayName}</span>
-          <span className="block truncate text-xs text-[var(--app-muted)]">{t('settings')}</span>
-        </span>
-        <Settings className="text-[var(--app-muted)]" size={16} />
-      </button>
     </aside>
-      )}
-    </>
   )
 }
 
-type FolderNodeProps = {
-  folder: FolderEntity
-  folderIndex: FolderTreeIndex
-  activeFolderId: FolderId | null
-  onSelect(folderId: FolderId): void
-  deleteFolder(folderId: FolderId): Promise<void>
-}
-
-const FolderNode = memo(function FolderNode({ folder, folderIndex, activeFolderId, onSelect, deleteFolder }: FolderNodeProps) {
+type FolderNodeProps = { folder: FolderEntity; folderIndex: FolderTreeIndex; activeFolderId: FolderId | null; onSelect(folderId: FolderId): void; depth: number }
+const FolderNode = memo(function FolderNode({ folder, folderIndex, activeFolderId, onSelect, depth }: FolderNodeProps) {
   const [open, setOpen] = useState(true)
   const children = folderIndex.childrenByParent.get(folder.id) ?? []
-  const FolderIcon = folderIconMap[folder.icon]
+  const Icon = folderIconMap[folder.icon]
   const count = folderIndex.noteCountByFolderId.get(folder.id) ?? 0
-
-  return (
-    <div>
-      <div className="group flex items-center gap-1 rounded-2xl py-1">
-        <button className="rounded-full p-1 text-[var(--app-muted)] hover:bg-white/10" onClick={() => setOpen((value) => !value)} type="button">
-          {children.length > 0 ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : <span className="block h-3.5 w-3.5" />}
+  return <div className="min-w-0">
+    <FolderMenu folder={folder}>
+      <div className={cn('flex min-w-0 items-center gap-0.5 rounded-md', activeFolderId === folder.id && 'bg-secondary')} style={{ paddingLeft: Math.min(depth, 4) * 12 }}>
+        <button className="grid size-7 shrink-0 place-items-center rounded-sm text-muted-foreground hover:bg-secondary disabled:cursor-default" aria-label={folder.name} aria-expanded={children.length ? open : undefined} disabled={!children.length} onClick={() => setOpen(!open)} type="button">
+          {children.length ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : <span className="size-3.5" />}
         </button>
-        <button
-          className={cn(
-            'flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2 text-left text-sm font-semibold transition',
-            activeFolderId === folder.id ? 'bg-white/12 text-white' : 'text-[#d8e5d9] hover:bg-white/8',
-          )}
-          onClick={() => onSelect(folder.id)}
-          type="button"
-        >
-          <FolderIcon className="shrink-0" size={16} />
-          <span className="truncate">{folder.name}</span>
-          <span className="ml-auto text-xs text-[var(--app-muted)]">{count}</span>
+        <button className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-2.5 pr-1 text-left text-sm hover:bg-secondary" title={folder.name} onClick={() => onSelect(folder.id)} type="button">
+          <Icon className="shrink-0 text-muted-foreground" size={16} /><span className="min-w-0 flex-1 truncate">{folder.name}</span><span className="shrink-0 text-xs text-muted-foreground">{count}</span>
         </button>
-        <button
-          className="hidden rounded-full p-1 text-[#ff8b8b] hover:bg-red-500/10 group-hover:block"
-          onClick={() => void deleteFolder(folder.id)}
-          type="button"
-        >
-          <Trash2 size={14} />
-        </button>
+        <FolderMenu folder={folder} />
       </div>
-      {open && children.length > 0 ? (
-          <div className="ml-5 border-l border-white/10 pl-2">
-            {children.map((child) => (
-              <FolderNode activeFolderId={activeFolderId} deleteFolder={deleteFolder} folder={child} folderIndex={folderIndex} key={child.id} onSelect={onSelect} />
-            ))}
-          </div>
-      ) : null}
-    </div>
-  )
+    </FolderMenu>
+    {open && children.map((child) => <FolderNode activeFolderId={activeFolderId} folder={child} folderIndex={folderIndex} key={child.id} onSelect={onSelect} depth={depth + 1} />)}
+  </div>
 })

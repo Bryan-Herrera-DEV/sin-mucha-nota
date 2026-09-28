@@ -1,4 +1,4 @@
-import { createFolder, type Folder, type FolderIcon, type FolderId } from '@/domain/folders/folder'
+import { createFolder, renameFolder, type Folder, type FolderIcon, type FolderId } from '@/domain/folders/folder'
 import {
   createEmptyDrawing,
   createNote,
@@ -85,6 +85,14 @@ class WorkspaceService {
     await this.fileStorage.writeJson(note.contentRef.drawingPath, createEmptyDrawing())
 
     return note
+  }
+
+  async renameFolder(folder: Folder, name: string): Promise<Folder> {
+    const renamedFolder = renameFolder(folder, name)
+
+    await saveFolder(renamedFolder)
+
+    return renamedFolder
   }
 
   async renameNote(note: Note, title: string): Promise<Note> {

@@ -52,6 +52,7 @@ type GithubDeviceFlow = {
 }
 
 type WorkspaceState = {
+  workspaceView: 'dashboard' | 'notes'
   bootStatus: BootStatus
   contentStatus: ContentStatus
   storageMode: string
@@ -85,8 +86,11 @@ type WorkspaceActions = {
   completeOnboarding(input: OnboardingInput): Promise<void>
   selectFolder(folderId: FolderId | null): void
   selectNote(noteId: NoteId): Promise<void>
-  createFolder(name: string, parentId: FolderId | null, icon: FolderIcon): Promise<void>
-  createNote(title: string, folderId: FolderId | null): Promise<void>
+  setWorkspaceView(view: 'dashboard' | 'notes'): void
+  createFolder(name: string, parentId: FolderId | null, icon: FolderIcon): Promise<boolean>
+  createNote(title: string, folderId: FolderId | null): Promise<boolean>
+  renameFolder(folderId: FolderId, name: string): Promise<boolean>
+  moveNote(noteId: NoteId, folderId: FolderId | null): Promise<boolean>
   renameActiveNote(title: string): Promise<void>
   moveActiveNote(folderId: FolderId | null): Promise<void>
   deleteNote(noteId: NoteId): Promise<void>
@@ -116,6 +120,7 @@ export type WorkspaceStore = WorkspaceState & WorkspaceActions
 type PersistedWorkspaceState = Pick<WorkspaceState, 'activeFolderId' | 'activeNoteId' | 'editorMode' | 'settingsOpen' | 'sidebarCollapsed'>
 
 const initialWorkspaceState: WorkspaceState = {
+  workspaceView: 'dashboard',
   bootStatus: 'idle',
   contentStatus: 'idle',
   storageMode: workspaceService.storageMode,
@@ -145,6 +150,7 @@ const initialWorkspaceState: WorkspaceState = {
 }
 
 const persistedWorkspaceStorage = createZustandIndexedDbJsonStorage<PersistedWorkspaceState>()
+let noteSaveInFlight: Promise<void> | null = null
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
   subscribeWithSelector(
@@ -220,7 +226,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         },
         selectFolder(folderId) {
-          set({ activeFolderId: folderId })
+          set({ activeFolderId: folderId, workspaceView: 'notes' })
+        },
+        setWorkspaceView(workspaceView) {
+          set({ workspaceView })
         },
         async selectNote(noteId) {
           const note = get().notes.find((candidate) => candidate.id === noteId)
@@ -229,11 +238,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             return
           }
 
-          if (get().isDirty) {
+          if (get().activeNoteId === noteId && get().loadedContentNoteId === noteId) {
+            set({ workspaceView: 'notes' })
+            return
+          }
+
+          if (get().isDirty || get().contentStatus === 'saving') {
             await get().saveActiveNote()
+            if (get().isDirty) return
           }
 
           set({
+            workspaceView: 'notes',
             activeNoteId: noteId,
             markdownDraft: '',
             drawingDraft: createEmptyDrawing(),
@@ -264,26 +280,47 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         },
         async createFolder(name, parentId, icon) {
           try {
+            if (parentId && !get().folders.some((folder) => folder.id === parentId)) return false
             const folder = await workspaceService.createFolder(name, parentId, icon)
 
             set((state) => ({
               folders: [...state.folders, folder].sort((first, second) => first.name.localeCompare(second.name)),
               activeFolderId: folder.id,
+              workspaceView: 'notes',
             }))
+            return true
           } catch (error) {
             set({ errorMessage: handleStoreError(error, 'createFolder') })
+            return false
+          }
+        },
+        async renameFolder(folderId, name) {
+          const folder = get().folders.find((candidate) => candidate.id === folderId)
+          if (!folder) return false
+
+          try {
+            const renamedFolder = await workspaceService.renameFolder(folder, name)
+            set((state) => ({ folders: state.folders.map((candidate) => candidate.id === folderId ? renamedFolder : candidate).sort((a, b) => a.name.localeCompare(b.name)) }))
+            return true
+          } catch (error) {
+            set({ errorMessage: handleStoreError(error, 'renameFolder') })
+            return false
           }
         },
         async createNote(title, folderId) {
-          if (get().isDirty) {
+          if (get().isDirty || get().contentStatus === 'saving') {
             await get().saveActiveNote()
+            if (get().isDirty) return false
           }
 
           try {
+            if (folderId && !get().folders.some((folder) => folder.id === folderId)) return false
             const note = await workspaceService.createNote(title, folderId)
 
             set((state) => ({
               notes: [note, ...state.notes],
+              workspaceView: 'notes',
+              search: '',
               activeNoteId: note.id,
               activeFolderId: folderId,
               markdownDraft: '',
@@ -293,12 +330,19 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               contentStatus: 'ready',
               lastSavedAt: note.updatedAt,
             }))
+            return true
           } catch (error) {
             set({ errorMessage: handleStoreError(error, 'createNote') })
+            return false
           }
         },
         async renameActiveNote(title) {
-          const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
+          const noteId = get().activeNoteId
+          if (get().isDirty || get().contentStatus === 'saving') {
+            await get().saveActiveNote()
+            if (get().isDirty) return
+          }
+          const activeNote = get().notes.find((note) => note.id === noteId)
 
           if (!activeNote || activeNote.title === title.trim()) {
             return
@@ -309,31 +353,43 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
             set((state) => ({
               notes: state.notes.map((note) => (note.id === renamedNote.id ? renamedNote : note)),
-              lastSavedAt: renamedNote.updatedAt,
+              lastSavedAt: state.activeNoteId === noteId ? renamedNote.updatedAt : state.lastSavedAt,
             }))
           } catch (error) {
             set({ errorMessage: handleStoreError(error, 'renameActiveNote') })
           }
         },
         async moveActiveNote(folderId) {
-          const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
-
-          if (!activeNote || activeNote.folderId === folderId) {
-            return
+          const noteId = get().activeNoteId
+          if (noteId) await get().moveNote(noteId, folderId)
+        },
+        async moveNote(noteId, folderId) {
+          if (get().activeNoteId === noteId && (get().isDirty || get().contentStatus === 'saving')) {
+            await get().saveActiveNote()
+            if (get().isDirty) return false
           }
+          const activeNote = get().notes.find((note) => note.id === noteId)
+
+          if (!activeNote) return false
+          if (activeNote.folderId === folderId) return true
+          if (folderId && !get().folders.some((folder) => folder.id === folderId)) return false
 
           try {
             const movedNote = await workspaceService.moveNote(activeNote, folderId)
 
             set((state) => ({
               notes: state.notes.map((note) => (note.id === movedNote.id ? movedNote : note)),
-              lastSavedAt: movedNote.updatedAt,
+              activeFolderId: state.activeNoteId === noteId && state.activeFolderId !== null ? folderId : state.activeFolderId,
+              lastSavedAt: state.activeNoteId === noteId ? movedNote.updatedAt : state.lastSavedAt,
             }))
+            return true
           } catch (error) {
             set({ errorMessage: handleStoreError(error, 'moveActiveNote') })
+            return false
           }
         },
         async deleteNote(noteId) {
+          if (get().contentStatus === 'saving') await get().saveActiveNote()
           const note = get().notes.find((candidate) => candidate.id === noteId)
 
           if (!note) {
@@ -347,7 +403,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             const nextNotes = state.notes.filter((candidate) => candidate.id !== noteId)
             const nextActiveNote = state.activeNoteId === noteId ? getVisibleNotes(nextNotes, state.folders, state.activeFolderId, state.search)[0] : null
 
-            set({ notes: nextNotes, isDirty: false })
+            set({ notes: nextNotes, isDirty: state.activeNoteId === noteId ? false : state.isDirty })
 
             if (nextActiveNote) {
               await get().selectNote(nextActiveNote.id)
@@ -366,6 +422,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
         },
         async deleteFolder(folderId) {
+          if (get().contentStatus === 'saving') await get().saveActiveNote()
           try {
             const deleted = await workspaceService.deleteFolder(folderId, get().folders, get().notes)
             const notes = get().notes.filter((note) => !deleted.deletedNoteIds.includes(note.id))
@@ -411,6 +468,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           set({ drawingDraft: drawing, isDirty: true })
         },
         async saveActiveNote() {
+          if (noteSaveInFlight) {
+            await noteSaveInFlight
+            return
+          }
           const activeNote = get().notes.find((note) => note.id === get().activeNoteId)
 
           if (!activeNote || !get().isDirty || get().loadedContentNoteId !== activeNote.id) {
@@ -418,22 +479,22 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
 
           set({ contentStatus: 'saving', errorMessage: null })
-
-          try {
-            const savedNote = await workspaceService.saveNoteContent(activeNote, {
-              markdown: get().markdownDraft,
-              drawing: get().drawingDraft,
-            })
-
-            set((state) => ({
-              notes: state.notes.map((note) => (note.id === savedNote.id ? savedNote : note)),
-              contentStatus: 'ready',
-              isDirty: false,
-              lastSavedAt: savedNote.updatedAt,
-            }))
-          } catch (error) {
-            set({ contentStatus: 'error', errorMessage: handleStoreError(error, 'saveActiveNote') })
-          }
+          const draft = { markdown: get().markdownDraft, drawing: get().drawingDraft }
+          noteSaveInFlight = (async () => {
+            try {
+              const savedNote = await workspaceService.saveNoteContent(activeNote, draft)
+              set((state) => ({
+                notes: state.notes.map((note) => (note.id === savedNote.id ? savedNote : note)),
+                contentStatus: state.activeNoteId === savedNote.id ? 'ready' : state.contentStatus,
+                isDirty: state.activeNoteId === savedNote.id ? state.markdownDraft !== draft.markdown || !areDrawingsEqual(state.drawingDraft, draft.drawing) : state.isDirty,
+                lastSavedAt: state.activeNoteId === savedNote.id ? savedNote.updatedAt : state.lastSavedAt,
+              }))
+            } catch (error) {
+              set({ contentStatus: 'error', errorMessage: handleStoreError(error, 'saveActiveNote') })
+            }
+          })()
+          try { await noteSaveInFlight }
+          finally { noteSaveInFlight = null }
         },
         setEditorMode(mode) {
           set({ editorMode: mode })
