@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   resolve: {
+    // All overlays must share Radix's layer registry and focus stack.
+    dedupe: ['react', 'react-dom', '@radix-ui/react-dismissable-layer', '@radix-ui/react-focus-scope'],
     alias: {
       '@': '/src',
     },

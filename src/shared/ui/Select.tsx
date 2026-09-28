@@ -1,9 +1,6 @@
-import * as SelectPrimitive from '@radix-ui/react-select'
-import { useState } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { Select as SelectPrimitive } from 'radix-ui'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/shared/lib/cn'
-import { smoothSpring } from '@/shared/lib/motionPresets'
 
 type SelectOption = {
   value: string
@@ -23,11 +20,10 @@ type SelectProps = {
 
 export function Select({ value, onValueChange, options, placeholder, variant = 'dark', className, contentClassName, ariaLabel }: SelectProps) {
   const isLight = variant === 'light'
-  const [open, setOpen] = useState(false)
   const selectedLabel = options.find((option) => option.value === value)?.label
 
   return (
-    <SelectPrimitive.Root onOpenChange={setOpen} onValueChange={onValueChange} open={open} value={value}>
+    <SelectPrimitive.Root onValueChange={onValueChange} value={value}>
       <SelectPrimitive.Trigger
         aria-label={ariaLabel ?? placeholder}
         className={cn(
@@ -44,45 +40,36 @@ export function Select({ value, onValueChange, options, placeholder, variant = '
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
-        <AnimatePresence>
-          {open ? (
-            <SelectPrimitive.Content asChild forceMount position="popper" sideOffset={6}>
-              <motion.div
+        <SelectPrimitive.Content
+          position="popper"
+          sideOffset={6}
+          className={cn(
+            'z-50 max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] min-w-[8rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border shadow-[0_18px_60px_rgb(0_0_0_/_0.38)]',
+            isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[var(--app-sidebar)] text-white',
+            contentClassName,
+          )}
+        >
+          <SelectPrimitive.Viewport className="max-h-72 overflow-y-auto p-1">
+            {options.map((option) => (
+              <SelectPrimitive.Item
                 className={cn(
-                  'z-50 max-h-[min(18rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] min-w-[8rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border shadow-[0_18px_60px_rgb(0_0_0_/_0.38)]',
-                  isLight ? 'border-line bg-paper text-ink' : 'border-white/10 bg-[var(--app-sidebar)] text-white',
-                  contentClassName,
+                  'relative flex h-8 cursor-pointer select-none items-center rounded-lg py-1.5 pl-8 pr-3 text-sm font-semibold outline-none transition data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                  isLight ? 'data-[highlighted]:bg-paper-soft data-[highlighted]:text-ink' : 'data-[highlighted]:bg-white/10 data-[highlighted]:text-white',
                 )}
-                initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                style={{ willChange: 'transform, opacity' }}
-                transition={smoothSpring}
+                key={option.value}
+                title={option.label}
+                value={option.value}
               >
-                <SelectPrimitive.Viewport className="max-h-72 overflow-y-auto p-1">
-                  {options.map((option) => (
-                    <SelectPrimitive.Item
-                      className={cn(
-                        'relative flex h-8 cursor-pointer select-none items-center rounded-lg py-1.5 pl-8 pr-3 text-sm font-semibold outline-none transition data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-                        isLight ? 'data-[highlighted]:bg-paper-soft data-[highlighted]:text-ink' : 'data-[highlighted]:bg-white/10 data-[highlighted]:text-white',
-                      )}
-                      key={option.value}
-                      title={option.label}
-                      value={option.value}
-                    >
-                      <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
-                        <SelectPrimitive.ItemIndicator>
-                          <Check size={14} />
-                        </SelectPrimitive.ItemIndicator>
-                      </span>
-                      <SelectPrimitive.ItemText className="min-w-0 truncate">{option.label}</SelectPrimitive.ItemText>
-                    </SelectPrimitive.Item>
-                  ))}
-                </SelectPrimitive.Viewport>
-              </motion.div>
-            </SelectPrimitive.Content>
-          ) : null}
-        </AnimatePresence>
+                <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
+                  <SelectPrimitive.ItemIndicator>
+                    <Check size={14} />
+                  </SelectPrimitive.ItemIndicator>
+                </span>
+                <SelectPrimitive.ItemText className="min-w-0 truncate">{option.label}</SelectPrimitive.ItemText>
+              </SelectPrimitive.Item>
+            ))}
+          </SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
       </SelectPrimitive.Portal>
     </SelectPrimitive.Root>
   )

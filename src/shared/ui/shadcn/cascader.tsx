@@ -90,7 +90,7 @@ export function Cascader({ options, value, onChange, placeholder, title, disable
   }
 
   return (
-    <Popover modal open={open} onOpenChange={(nextOpen) => {
+    <Popover modal={false} open={open} onOpenChange={(nextOpen) => {
       setOpen(nextOpen)
       if (nextOpen) {
         setExpandedPath(value.slice(0, -1))
@@ -105,7 +105,7 @@ export function Cascader({ options, value, onChange, placeholder, title, disable
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto max-w-[min(46rem,calc(100vw-2rem))] overflow-hidden p-0"
+      <PopoverContent align="start" className="w-auto max-w-[min(46rem,calc(100vw-2rem))] overflow-hidden p-0 data-[state=closed]:animate-none"
         onOpenAutoFocus={(event) => { event.preventDefault(); focusItem(focus[0], focus[1]) }}>
         <div ref={scrollContainerRef} role="listbox" aria-label={placeholder} className="flex overflow-x-auto overscroll-contain">
           {columns.map((column, columnIndex) => (
