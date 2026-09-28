@@ -8,12 +8,9 @@ import { loadGameScores, saveGameScore } from './gameScores'
 import styles from './MiniOsu.module.css'
 
 const DURATION = 20_000
-const HIT_START = 750
-const HIT_END = 1_350
 type Point = { x: number; y: number }
-type Target = { current: Point; next: Point; number: number; bornAt: number }
-type Feedback = 'gamePerfect' | 'gameHit' | 'gameEarly' | 'gameMiss'
-// Leave room for the outer ring even on narrow phone screens.
+type Target = { current: Point; next: Point; number: number }
+// Keep both circles comfortably inside narrow phone screens.
 const positions = [28, 50, 72].flatMap((y) => [22, 50, 78].map((x) => ({ x, y })))
 
 function nextPoint(previous: Point, before?: Point): Point {
@@ -28,11 +25,8 @@ export function MiniOsu() {
   const [scores, setScores] = useState(loadGameScores)
   const [running, setRunning] = useState(false)
   const [score, setScore] = useState(0)
-  const [combo, setCombo] = useState(0)
   const [remaining, setRemaining] = useState(20)
   const [target, setTarget] = useState<Target | null>(null)
-  const [ready, setReady] = useState(false)
-  const [feedback, setFeedback] = useState<Feedback | null>(null)
   const [burst, setBurst] = useState<(Point & { number: number }) | null>(null)
   const [result, setResult] = useState('')
   const deadline = useRef(0)
@@ -42,7 +36,6 @@ export function MiniOsu() {
   const targetButton = useRef<HTMLButtonElement>(null)
   const startButton = useRef<HTMLButtonElement>(null)
   const finish = useRef(() => {})
-  const advance = useRef((_: number) => {})
 
   finish.current = () => {
     if (!active.current) return
@@ -54,13 +47,12 @@ export function MiniOsu() {
     catch { setResult(t('scoresUnavailable')) }
   }
 
-  advance.current = (now) => {
+  function advance() {
     const previous = currentTarget.current
     if (!previous || !active.current) return
-    const next = { current: previous.next, next: nextPoint(previous.next, previous.current), number: previous.number + 1, bornAt: now }
+    const next = { current: previous.next, next: nextPoint(previous.next, previous.current), number: previous.number + 1 }
     currentTarget.current = next
     setTarget(next)
-    setReady(false)
   }
 
   useEffect(() => {
@@ -70,17 +62,9 @@ export function MiniOsu() {
       const ms = Math.max(0, deadline.current - now)
       setRemaining(Math.ceil(ms / 1000))
       if (!ms) { finish.current(); return }
-      const current = currentTarget.current
-      if (!current) return
-      const age = now - current.bornAt
-      if (age >= HIT_END) {
-        setCombo(0)
-        setFeedback('gameMiss')
-        advance.current(now)
-      } else setReady(age >= HIT_START)
     }
-    // CSS animates the ring; React only updates the timer and timing window.
-    const interval = window.setInterval(tick, 100)
+    // Targets advance only on a hit, never on the timer.
+    const interval = window.setInterval(tick, 200)
     const onVisibilityChange = () => { if (!document.hidden) tick() }
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
@@ -98,13 +82,13 @@ export function MiniOsu() {
   function start() {
     const now = performance.now()
     const current = positions[Math.floor(Math.random() * positions.length)]
-    const first = { current, next: nextPoint(current), number: 1, bornAt: now }
+    const first = { current, next: nextPoint(current), number: 1 }
     points.current = 0
     deadline.current = now + DURATION
     active.current = true
     currentTarget.current = first
-    setScore(0); setCombo(0); setRemaining(20); setTarget(first)
-    setReady(false); setFeedback(null); setBurst(null); setResult(''); setRunning(true)
+    setScore(0); setRemaining(20); setTarget(first)
+    setBurst(null); setResult(''); setRunning(true)
   }
 
   function hit() {
@@ -112,19 +96,11 @@ export function MiniOsu() {
     if (!active.current || !current || current.number !== target?.number) return
     const now = performance.now()
     if (now >= deadline.current) { finish.current(); return }
-    const age = now - current.bornAt
-    if (age < HIT_START) { setFeedback('gameEarly'); return }
-    if (age >= HIT_END) {
-      setCombo(0); setFeedback('gameMiss'); advance.current(now); return
-    }
-    const perfect = Math.abs(age - 1000) <= 120
-    points.current += perfect ? 2 : 1
+    points.current += 1
     setScore(points.current)
-    setCombo((value) => value + 1)
-    setFeedback(perfect ? 'gamePerfect' : 'gameHit')
     setBurst({ ...current.current, number: current.number })
     play('tap')
-    advance.current(now)
+    advance()
   }
 
   return (
@@ -158,13 +134,10 @@ export function MiniOsu() {
               onKeyDown={(event) => { if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault() }}
               className="absolute size-[52px] -translate-x-1/2 -translate-y-1/2 touch-manipulation rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
               style={{ left: `${target.current.x}%`, top: `${target.current.y}%` }}>
-              <span key={target.number} aria-hidden="true" className={`pointer-events-none absolute inset-0 rounded-full border-2 border-primary ${styles.approach}`} />
-              <span className={`relative grid size-full place-items-center rounded-full border-2 border-primary text-lg font-bold tabular-nums ${ready ? 'bg-primary text-primary-foreground shadow-[0_0_20px_var(--accent-soft)]' : 'bg-background text-foreground'}`}>{target.number}</span>
-              <span aria-hidden="true" className="absolute left-1/2 mt-2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold text-foreground">{ready ? t('gameNow') : t('gameWait')}</span>
+              <span className="relative grid size-full place-items-center rounded-full border-2 border-primary bg-primary text-lg font-bold tabular-nums text-primary-foreground shadow-[0_0_20px_var(--accent-soft)]">{target.number}</span>
             </button>
-            <div className="pointer-events-none absolute inset-x-3 top-2 flex justify-between gap-2 text-[11px] font-medium">
-              <span className="text-primary">{feedback ? t(feedback) : t('gameFollowTrail')}</span>
-              <span className="tabular-nums text-muted-foreground">{t('gameCombo')} ×{combo}</span>
+            <div className="pointer-events-none absolute inset-x-3 top-2 text-[11px] font-medium">
+              <span className="text-primary">{t('gameFollowTrail')}</span>
             </div>
           </> : <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/90 p-4 text-center">
             <Crosshair className="size-7 text-primary" />

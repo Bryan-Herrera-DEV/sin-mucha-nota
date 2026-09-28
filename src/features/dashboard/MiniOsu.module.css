@@ -1,14 +1,5 @@
-.approach {
-  animation: approach 1000ms linear forwards;
-}
-
 .burst {
   animation: burst 350ms ease-out forwards;
-}
-
-@keyframes approach {
-  from { transform: scale(1.85); opacity: 0.3; }
-  to { transform: scale(1); opacity: 0.9; }
 }
 
 @keyframes burst {
@@ -17,6 +8,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .approach { animation: none; transform: scale(1); opacity: 0.8; }
   .burst { display: none; }
 }
