@@ -5,8 +5,21 @@ const SYNC_INTERVAL_MS = 30_000
 
 let intervalId: number | null = null
 let syncing = false
+let paused = false
+let pauseRequestId: string | null = null
 
-self.addEventListener('message', (event: MessageEvent<{ type: 'start' | 'sync-now' | 'stop' }>) => {
+self.addEventListener('message', (event: MessageEvent<{ type: 'start' | 'sync-now' | 'stop' | 'pause' | 'resume'; requestId?: string; enabled?: boolean }>) => {
+  if (event.data.type === 'pause') {
+    paused = true
+    pauseRequestId = event.data.requestId ?? null
+    stopSyncLoop()
+    acknowledgePause()
+  }
+  if (event.data.type === 'resume') {
+    paused = false
+    pauseRequestId = null
+    if (event.data.enabled) startSyncLoop()
+  }
   if (event.data.type === 'start') {
     startSyncLoop()
   }
@@ -21,7 +34,7 @@ self.addEventListener('message', (event: MessageEvent<{ type: 'start' | 'sync-no
 })
 
 function startSyncLoop(): void {
-  if (intervalId !== null) {
+  if (intervalId !== null || paused) {
     return
   }
 
@@ -39,7 +52,7 @@ function stopSyncLoop(): void {
 }
 
 async function syncNow(): Promise<void> {
-  if (syncing) {
+  if (syncing || paused) {
     return
   }
 
@@ -55,5 +68,13 @@ async function syncNow(): Promise<void> {
     self.postMessage({ type: 'sync-error', message: appError.userMessage })
   } finally {
     syncing = false
+    acknowledgePause()
+  }
+}
+
+function acknowledgePause(): void {
+  if (paused && !syncing && pauseRequestId) {
+    self.postMessage({ type: 'paused', requestId: pauseRequestId })
+    pauseRequestId = null
   }
 }

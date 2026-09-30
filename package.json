@@ -10,6 +10,7 @@
     "build:pages": "tsc -b && vite build --mode pages",
     "benchmark": "node scripts/workspaceBenchmark.mjs",
     "lint": "oxlint",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cuelume": "^0.1.2",
+    "fflate": "^0.8.3",
     "idb": "^8.0.3",
     "lucide-react": "^1.24.0",
     "motion": "^12.42.2",
@@ -34,15 +36,20 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.1",
     "oxlint": "^1.71.0",
     "react-scan": "^0.5.7",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "lodash-es": "^4.18.1"

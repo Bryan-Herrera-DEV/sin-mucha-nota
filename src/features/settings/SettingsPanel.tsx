@@ -17,6 +17,7 @@ import { Button } from '@/shared/ui/Button'
 import { Select } from '@/shared/ui/Select'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
 import { canUseGithubOAuth } from '@/infrastructure/github/githubApi'
+import { SessionTransfer } from './SessionTransfer'
 
 const PROJECT_REPOSITORY_NAME = 'Bryan-Herrera-DEV/sin-mucha-nota'
 const PROJECT_REPOSITORY_URL = `https://github.com/${PROJECT_REPOSITORY_NAME}`
@@ -125,6 +126,7 @@ export function SettingsPanel() {
       </header>
 
       <div className="space-y-3 overflow-auto pr-1">
+        <SessionTransfer />
         <section className="rounded-2xl border border-white/10 bg-white/6 p-3">
           <p className="mb-3 text-sm font-black text-white">{t('profile')}</p>
           <label className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--app-muted)]">

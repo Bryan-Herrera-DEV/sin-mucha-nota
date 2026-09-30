@@ -79,6 +79,8 @@ type WorkspaceState = {
   githubBusy: boolean
   githubError: string | null
   errorMessage: string | null
+  sessionBusy: boolean
+  sessionRevision: number
 }
 
 type WorkspaceActions = {
@@ -147,6 +149,8 @@ const initialWorkspaceState: WorkspaceState = {
   githubBusy: false,
   githubError: null,
   errorMessage: null,
+  sessionBusy: false,
+  sessionRevision: 0,
 }
 
 const persistedWorkspaceStorage = createZustandIndexedDbJsonStorage<PersistedWorkspaceState>()
@@ -159,6 +163,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         ...initialWorkspaceState,
         async bootstrap() {
           const previousState = get()
+          if (previousState.sessionBusy) return
           const refreshing = previousState.bootStatus === 'ready'
           if (previousState.bootStatus === 'loading' || refreshing && (previousState.isDirty || previousState.contentStatus === 'saving')) {
             return
@@ -180,6 +185,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
             // A sync refresh must not interrupt navigation or overwrite edits made while reading.
             const currentState = get()
+            if (currentState.sessionBusy) return
             if (refreshing && (currentState.isDirty || currentState.contentStatus === 'saving'
               || currentState.activeNoteId !== previousState.activeNoteId
               || currentState.notes !== previousState.notes

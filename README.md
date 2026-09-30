@@ -8,8 +8,28 @@ App local para tomar notas con Markdown, Excalidraw, carpetas anidadas, sonidos 
 npm install
 npm run dev
 npm run build
+npm test
 npm run benchmark
 ```
+
+## Imágenes y copias de sesión
+
+Puedes pegar imágenes con `Ctrl+V` (o `Cmd+V`) en Markdown y Excalidraw.
+Las imágenes de Markdown quedan incrustadas en la nota y se muestran en Preview;
+las de Excalidraw se guardan junto con el dibujo. Ambas viajan con la sincronización
+de GitHub y con las copias ZIP, sin depender del portapapeles ni de URLs temporales.
+
+En **Configuración → Copia de la sesión** están **Exportar sesión (.zip)** e
+**Importar sesión (.zip)**, también cuando GitHub está conectado. El ZIP incluye
+todas las notas y carpetas, los dibujos con sus imágenes, las preferencias, la
+vista activa y el historial de partidas. La exportación guarda automáticamente los
+cambios pendientes. Las credenciales de GitHub no se incluyen.
+
+La importación muestra el nombre del archivo y el número de notas y carpetas antes
+de reemplazar la sesión local. También está disponible en la pantalla inicial.
+Valida el archivo antes de restaurar los datos y pausa la sincronización de GitHub;
+vuelve a elegir el repositorio para decidir cómo sincronizar la sesión restaurada.
+El límite de importación es de 512 MB, tanto comprimidos como descomprimidos.
 
 `npm run benchmark` genera un workspace sintetico con miles de notas y archivos pesados para medir filtros, conteos de carpetas, snapshot de sync y base64 de GitHub.
 Ejemplo: `npm run benchmark -- --notes=12000 --folders=2400 --markdownKb=12 --drawingKb=6 --compare-legacy`.

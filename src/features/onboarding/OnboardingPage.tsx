@@ -8,12 +8,14 @@ import { cn } from '@/shared/lib/cn'
 import { listContainer, listItem, panelPresence, smoothSpring } from '@/shared/lib/motionPresets'
 import { useSoundFeedback } from '@/shared/hooks/useSoundFeedback'
 import { Select } from '@/shared/ui/Select'
+import { SessionTransfer } from '@/features/settings/SessionTransfer'
 
 const defaultTheme = themeOptions[0]
 
 export function OnboardingPage() {
   const completeOnboarding = useWorkspaceStore((state) => state.completeOnboarding)
   const bootStatus = useWorkspaceStore((state) => state.bootStatus)
+  const sessionBusy = useWorkspaceStore((state) => state.sessionBusy)
   const errorMessage = useWorkspaceStore((state) => state.errorMessage)
   const [displayName, setDisplayName] = useState('')
   const [locale, setLocale] = useState<Locale>('es')
@@ -174,10 +176,11 @@ export function OnboardingPage() {
           </AnimatePresence>
 
           <motion.div variants={listItem}>
-            <Button className="h-12 w-full text-sm font-black" disabled={bootStatus === 'loading'} type="submit" variant="primary">
+            <Button className="h-12 w-full text-sm font-black" disabled={bootStatus === 'loading' || sessionBusy} type="submit" variant="primary">
             {bootStatus === 'loading' ? t('loading') : t('startButton')}
             </Button>
           </motion.div>
+          <SessionTransfer importOnly />
         </motion.form>
       </motion.section>
     </main>

@@ -25,6 +25,8 @@ export function AppShell() {
   const errorMessage = useWorkspaceStore((state) => state.errorMessage)
   const dismissError = useWorkspaceStore((state) => state.dismissError)
   const view = useWorkspaceStore((state) => state.workspaceView)
+  const sessionBusy = useWorkspaceStore((state) => state.sessionBusy)
+  const sessionRevision = useWorkspaceStore((state) => state.sessionRevision)
   const isDirty = useWorkspaceStore((state) => state.isDirty)
   const contentStatus = useWorkspaceStore((state) => state.contentStatus)
   const markdownDraft = useWorkspaceStore((state) => state.markdownDraft)
@@ -39,10 +41,10 @@ export function AppShell() {
 
   return (
     <div className="app-shell-bg h-dvh overflow-hidden text-[var(--app-text)]">
-        <div className="app-shell-frame relative flex h-full w-full flex-col overflow-hidden lg:flex-row">
+        <div inert={sessionBusy} className="app-shell-frame relative flex h-full w-full flex-col overflow-hidden lg:flex-row">
           <Sidebar />
           <Suspense fallback={<div className="app-workspace min-w-0 flex-1" />}>
-            {view === 'dashboard' ? <Dashboard /> : <EditorWorkspace />}
+            {view === 'dashboard' ? <Dashboard key={sessionRevision} /> : <EditorWorkspace />}
           </Suspense>
           <LibraryDialogs />
           <Toaster position="bottom-right" closeButton />
@@ -78,6 +80,7 @@ export function AppShell() {
             ) : null}
           </AnimatePresence>
         </div>
+        {sessionBusy && <div role="status" aria-live="polite" className="fixed inset-0 z-[60] grid place-items-center bg-black/60 text-sm font-bold text-white">{t('sessionWorking')}</div>}
     </div>
   )
 }

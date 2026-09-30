@@ -15,6 +15,7 @@ import { useLibraryUi } from '@/features/library/libraryUi.store'
 import { Button } from '@/shared/ui/shadcn/button'
 import { ExcalidrawPanel } from '@/features/editor/ExcalidrawPanel'
 import { MarkdownPreview } from '@/features/editor/MarkdownPreview'
+import { MarkdownEditor } from '@/features/editor/MarkdownEditor'
 
 const editorModes: EditorMode[] = ['markdown', 'preview', 'drawing', 'split']
 
@@ -31,8 +32,8 @@ export function EditorWorkspace() {
   const editorMode = useWorkspaceStore((state) => state.editorMode)
   const isDirty = useWorkspaceStore((state) => state.isDirty)
   const contentStatus = useWorkspaceStore((state) => state.contentStatus)
+  const sessionRevision = useWorkspaceStore((state) => state.sessionRevision)
   const lastSavedAt = useWorkspaceStore((state) => state.lastSavedAt)
-  const updateMarkdownDraft = useWorkspaceStore((state) => state.updateMarkdownDraft)
   const updateDrawingDraft = useWorkspaceStore((state) => state.updateDrawingDraft)
   const saveActiveNote = useWorkspaceStore((state) => state.saveActiveNote)
   const setEditorMode = useWorkspaceStore((state) => state.setEditorMode)
@@ -212,17 +213,12 @@ export function EditorWorkspace() {
                     )}
                   >
                     {(editorMode === 'split' || editorMode === 'markdown') && (
-                      <textarea
-                        className="markdown-editor min-h-[22rem] resize-none rounded-[1.1rem] border border-white/12 bg-[var(--app-panel-strong)] p-4 text-sm leading-7 text-[var(--app-text)] outline-none transition placeholder:text-[var(--app-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
-                        placeholder={t('editorPlaceholder')}
-                        value={markdownDraft}
-                        onChange={(event) => updateMarkdownDraft(event.target.value)}
-                      />
+                      <MarkdownEditor key={`${activeNote.id}:${sessionRevision}`} />
                     )}
 
                     {editorMode === 'preview' && <div><MarkdownPreview markdown={deferredMarkdown} /></div>}
 
-                    {(editorMode === 'split' || editorMode === 'drawing') && <div className="min-h-0"><ExcalidrawPanel drawing={drawingDraft} noteId={activeNote.id} onChange={updateDrawingDraft} /></div>}
+                    {(editorMode === 'split' || editorMode === 'drawing') && <div className="min-h-0"><ExcalidrawPanel key={`${activeNote.id}:${sessionRevision}`} drawing={drawingDraft} noteId={activeNote.id} onChange={updateDrawingDraft} /></div>}
                   </section>
                 ) : (
                   <div className="grid min-h-[22rem] place-items-center rounded-[1.1rem] border border-white/12 bg-[var(--app-panel-strong)] text-sm font-bold text-[var(--app-muted)]">

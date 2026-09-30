@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type MutableRefObject } from 'react'
+import { lazy, Suspense, useRef } from 'react'
 import type { DrawingDocument, NoteId } from '@/domain/notes/note'
 
 type ExcalidrawPanelProps = {
@@ -7,53 +7,20 @@ type ExcalidrawPanelProps = {
   onChange(noteId: NoteId, drawing: DrawingDocument): void
 }
 
-const DRAWING_SYNC_INTERVAL = 700
-
 const ExcalidrawCanvas = lazy(() => import('@/features/editor/ExcalidrawCanvas'))
 
 export function ExcalidrawPanel({ noteId, drawing, onChange }: ExcalidrawPanelProps) {
-  const initialSignatureRef = useRef(createDrawingSignature(drawing))
-  const lastSignatureRef = useRef(initialSignatureRef.current)
-  const lastSyncedAtRef = useRef(0)
-  const pendingDrawingRef = useRef<DrawingDocument | null>(null)
-  const syncTimerRef = useRef<number | null>(null)
-  const onChangeRef = useRef(onChange)
-
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  useEffect(() => {
-    const signature = createDrawingSignature(drawing)
-
-    initialSignatureRef.current = signature
-    lastSignatureRef.current = signature
-    pendingDrawingRef.current = null
-    lastSyncedAtRef.current = 0
-
-    if (syncTimerRef.current !== null) {
-      window.clearTimeout(syncTimerRef.current)
-      syncTimerRef.current = null
-    }
-  }, [drawing, noteId])
-
-  useEffect(() => {
-    return () => {
-      if (syncTimerRef.current !== null) {
-        window.clearTimeout(syncTimerRef.current)
-      }
-    }
-  }, [])
+  const initialDrawing = useRef(drawing)
+  const lastSignature = useRef(JSON.stringify(drawing))
 
   return (
     <div className="excalidraw-wrapper h-full min-h-[28rem] overflow-hidden rounded-[1.35rem] border border-white/12 bg-[var(--app-panel-strong)]">
       <Suspense fallback={<div className="grid h-full min-h-[28rem] place-items-center text-sm font-bold text-[var(--app-muted)]">Excalidraw...</div>}>
         <ExcalidrawCanvas
-          key={noteId}
-          initialData={drawing as never}
+          initialData={initialDrawing.current as never}
           onChange={(elements, appState, files) => {
-            const nextDrawing = {
-              elements: elements as unknown[],
+            const nextDrawing: DrawingDocument = {
+              elements,
               appState: {
                 currentItemBackgroundColor: appState.currentItemBackgroundColor,
                 currentItemFillStyle: appState.currentItemFillStyle,
@@ -61,79 +28,16 @@ export function ExcalidrawPanel({ noteId, drawing, onChange }: ExcalidrawPanelPr
                 currentItemStrokeColor: appState.currentItemStrokeColor,
                 viewBackgroundColor: appState.viewBackgroundColor,
               },
-              files: files as unknown as Record<string, unknown>,
+              files: { ...files },
             }
-            const signature = createDrawingSignature(nextDrawing)
-
-            if (signature === lastSignatureRef.current) {
-              return
-            }
-
-            lastSignatureRef.current = signature
-
-            if (signature === initialSignatureRef.current) {
-              return
-            }
-
-            queueDrawingSync(noteId, nextDrawing, onChangeRef, pendingDrawingRef, lastSyncedAtRef, syncTimerRef)
+            const signature = JSON.stringify(nextDrawing)
+            if (signature === lastSignature.current) return
+            lastSignature.current = signature
+            // Navigation, save and ZIP export need the latest image files immediately.
+            onChange(noteId, nextDrawing)
           }}
         />
       </Suspense>
     </div>
   )
-}
-
-function queueDrawingSync(
-  noteId: NoteId,
-  drawing: DrawingDocument,
-  onChangeRef: MutableRefObject<(noteId: NoteId, drawing: DrawingDocument) => void>,
-  pendingDrawingRef: MutableRefObject<DrawingDocument | null>,
-  lastSyncedAtRef: MutableRefObject<number>,
-  syncTimerRef: MutableRefObject<number | null>,
-): void {
-  const now = Date.now()
-  const elapsed = now - lastSyncedAtRef.current
-
-  pendingDrawingRef.current = drawing
-
-  if (elapsed >= DRAWING_SYNC_INTERVAL) {
-    flushDrawingSync(noteId, onChangeRef, pendingDrawingRef, lastSyncedAtRef, syncTimerRef)
-
-    return
-  }
-
-  if (syncTimerRef.current === null) {
-    syncTimerRef.current = window.setTimeout(() => {
-      flushDrawingSync(noteId, onChangeRef, pendingDrawingRef, lastSyncedAtRef, syncTimerRef)
-    }, DRAWING_SYNC_INTERVAL - elapsed)
-  }
-}
-
-function flushDrawingSync(
-  noteId: NoteId,
-  onChangeRef: MutableRefObject<(noteId: NoteId, drawing: DrawingDocument) => void>,
-  pendingDrawingRef: MutableRefObject<DrawingDocument | null>,
-  lastSyncedAtRef: MutableRefObject<number>,
-  syncTimerRef: MutableRefObject<number | null>,
-): void {
-  if (syncTimerRef.current !== null) {
-    window.clearTimeout(syncTimerRef.current)
-    syncTimerRef.current = null
-  }
-
-  if (!pendingDrawingRef.current) {
-    return
-  }
-
-  onChangeRef.current(noteId, pendingDrawingRef.current)
-  pendingDrawingRef.current = null
-  lastSyncedAtRef.current = Date.now()
-}
-
-function createDrawingSignature(drawing: DrawingDocument): string {
-  try {
-    return JSON.stringify(drawing)
-  } catch {
-    return `${drawing.elements.length}:${Object.keys(drawing.files).length}:${Object.keys(drawing.appState).join(',')}`
-  }
 }

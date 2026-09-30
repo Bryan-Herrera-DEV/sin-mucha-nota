@@ -26,3 +26,7 @@ export function saveGameScore(score: number): GameScores {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
   return result
 }
+
+export function restoreGameScores(scores: GameScores): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(scores))
+}
