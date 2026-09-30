@@ -1,4 +1,5 @@
 import { createFolder, renameFolder, type Folder, type FolderIcon, type FolderId } from '@/domain/folders/folder'
+import type { NoteImageAsset } from '@/domain/notes/note'
 import {
   createEmptyDrawing,
   createNote,
@@ -29,9 +30,16 @@ import { createFileStorage, type FileStorage, type FileStorageMode } from '@/inf
 
 const INDEXED_DB_FILE_MIRROR_KEY = 'sin-mucha-nota-files-mirrored-v1'
 const FILE_MIRROR_BATCH_SIZE = 24
-import { normalizeNoteAssets, pruneUnreferencedAssets } from '@/features/editor/imageAssets'
+import { collectReferencedAssetIds, normalizeNoteAssets, pruneUnreferencedAssets } from '@/features/editor/imageAssets'
 import { collectFolderBranchIds } from '@/application/workspace/noteFilters'
 import { getWelcomeDrawing, getWelcomeMarkdown } from '@/application/workspace/welcomeContent'
+
+export type StoredImageAsset = {
+  asset: NoteImageAsset
+  noteId: NoteId
+  noteTitle: string
+  referenced: boolean
+}
 
 export type WorkspaceSnapshot = {
   preferences: UserPreferences | null
@@ -175,6 +183,23 @@ class WorkspaceService {
     this.assetSignatures.set(note.id, signature)
 
     return { note: updatedNote, assets }
+  }
+
+  // Settings lists every stored image, so the read has to hit the files, not the drafts.
+  async listImageAssets(notes: Note[]): Promise<StoredImageAsset[]> {
+    const entries = await Promise.all(notes.map(async (note) => {
+      const content = await this.loadNoteContent(note)
+      const referenced = collectReferencedAssetIds(content.markdown)
+
+      return Object.values(content.assets).map((asset) => ({
+        asset,
+        noteId: note.id,
+        noteTitle: note.title,
+        referenced: referenced.has(asset.id),
+      }))
+    }))
+
+    return entries.flat().sort((first, second) => second.asset.createdAt.localeCompare(first.asset.createdAt))
   }
 
   async deleteNote(note: Note): Promise<void> {

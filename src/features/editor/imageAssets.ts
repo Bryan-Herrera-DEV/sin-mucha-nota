@@ -39,6 +39,14 @@ export function collectReferencedAssetIds(markdown: string): Set<string> {
   return ids
 }
 
+export function removeAssetReferences(markdown: string, assetId: string): string {
+  // An image on a line of its own takes the whole line; an inline one leaves the text.
+  const wholeLine = new RegExp(String.raw`^[ \t]*!\[[^\]]*\]\(\s*asset:${assetId}[^)]*\)[ \t]*$\n?`, 'gim')
+  const inline = new RegExp(String.raw`!\[[^\]]*\]\(\s*asset:${assetId}[^)]*\)`, 'gi')
+
+  return markdown.replace(wholeLine, '').replace(inline, '').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '')
+}
+
 // Images removed from the text must not keep filling the browser storage quota.
 export function pruneUnreferencedAssets(markdown: string, assets: NoteAssets): NoteAssets {
   const referenced = collectReferencedAssetIds(markdown)

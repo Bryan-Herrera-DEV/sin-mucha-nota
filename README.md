@@ -31,6 +31,11 @@ la animación ni el vector. El límite duro por imagen es de 16 MB.
 Al borrar una imagen del texto, su archivo se descarta en el siguiente guardado. Todo
 —notas, dibujos e imágenes— viaja con la sincronización de GitHub y con las copias ZIP.
 
+En **Configuración → Imágenes guardadas** tienes todas las imágenes almacenadas con su
+tamaño y la nota a la que pertenecen, y puedes borrarlas una a una. Si la imagen todavía
+aparece en el texto, al borrarla se quita también su referencia del Markdown; las que ya
+no se usan salen marcadas.
+
 En **Configuración → Copia de la sesión** están **Exportar sesión (.zip)** e
 **Importar sesión (.zip)**, también cuando GitHub está conectado. El ZIP incluye
 todas las notas y carpetas, los dibujos con sus imágenes, las preferencias, la

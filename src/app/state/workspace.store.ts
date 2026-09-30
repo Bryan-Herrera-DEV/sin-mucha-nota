@@ -29,7 +29,7 @@ import {
 } from '@/infrastructure/db/localDatabase'
 import { canUseGithubOAuth, getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
-import { extractInlineImages } from '@/features/editor/imageAssets'
+import { extractInlineImages, removeAssetReferences } from '@/features/editor/imageAssets'
 import { getErrorMessage, reportAppError } from '@/shared/lib/appError'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
@@ -100,6 +100,7 @@ type WorkspaceActions = {
   deleteNote(noteId: NoteId): Promise<void>
   deleteFolder(folderId: FolderId): Promise<void>
   updateMarkdownDraft(markdown: string, assets?: NoteImageAsset[]): void
+  deleteImageAsset(noteId: NoteId, assetId: string): Promise<void>
   updateDrawingDraft(noteId: NoteId, drawing: DrawingDocument): void
   saveActiveNote(): Promise<void>
   setEditorMode(mode: EditorMode): void
@@ -498,6 +499,41 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
 
           set({ drawingDraft: drawing, isDirty: true })
+        },
+        // Dropping the bytes without dropping the reference would leave a broken image.
+        async deleteImageAsset(noteId, assetId) {
+          const note = get().notes.find((candidate) => candidate.id === noteId)
+
+          if (!note) return
+
+          try {
+            if (get().activeNoteId === noteId && get().loadedContentNoteId === noteId) {
+              const { [assetId]: removed, ...assets } = get().assetsDraft
+
+              if (!removed && !get().markdownDraft.includes(assetId)) return
+
+              set({ markdownDraft: removeAssetReferences(get().markdownDraft, assetId), assetsDraft: assets, isDirty: true })
+              await get().saveActiveNote()
+
+              return
+            }
+
+            const content = await workspaceService.loadNoteContent(note)
+            const { [assetId]: removed, ...assets } = content.assets
+
+            if (!removed && !content.markdown.includes(assetId)) return
+
+            const { note: savedNote } = await workspaceService.saveNoteContent(note, {
+              ...content,
+              markdown: removeAssetReferences(content.markdown, assetId),
+              assets,
+            })
+
+            set((state) => ({ notes: state.notes.map((candidate) => (candidate.id === savedNote.id ? savedNote : candidate)) }))
+          } catch (error) {
+            set({ errorMessage: handleStoreError(error, 'deleteImageAsset') })
+            throw error
+          }
         },
         async saveActiveNote() {
           if (noteSaveInFlight) {
