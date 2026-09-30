@@ -12,7 +12,21 @@ export type DrawingDocument = {
 export type NoteContentRef = {
   markdownPath: string
   drawingPath: string
+  // Optional so notes created before image assets existed keep loading.
+  assetsPath?: string
 }
+
+// Pasted images live next to the note instead of inside it, so the Markdown stays readable.
+export type NoteImageAsset = {
+  id: string
+  name: string
+  mimeType: string
+  byteSize: number
+  createdAt: ISODate
+  dataUrl: string
+}
+
+export type NoteAssets = Record<string, NoteImageAsset>
 
 export type Note = {
   id: NoteId
@@ -26,6 +40,7 @@ export type Note = {
 export type NoteContent = {
   markdown: string
   drawing: DrawingDocument
+  assets: NoteAssets
 }
 
 export function createEmptyDrawing(): DrawingDocument {
@@ -79,5 +94,10 @@ function createContentRef(noteId: NoteId): NoteContentRef {
   return {
     markdownPath: `notes/${noteId}/markdown.md`,
     drawingPath: `notes/${noteId}/drawing.excalidraw.json`,
+    assetsPath: `notes/${noteId}/assets.json`,
   }
+}
+
+export function resolveNoteAssetsPath(note: Note): string {
+  return note.contentRef.assetsPath ?? `${note.contentRef.markdownPath.replace(/\.md$/i, '')}.assets.json`
 }

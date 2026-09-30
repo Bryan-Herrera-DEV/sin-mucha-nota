@@ -5,8 +5,10 @@ import {
   markNoteContentSaved,
   moveNote,
   renameNote,
+  resolveNoteAssetsPath,
   type DrawingDocument,
   type Note,
+  type NoteAssets,
   type NoteContent,
   type NoteId,
 } from '@/domain/notes/note'
@@ -27,6 +29,7 @@ import { createFileStorage, type FileStorage, type FileStorageMode } from '@/inf
 
 const INDEXED_DB_FILE_MIRROR_KEY = 'sin-mucha-nota-files-mirrored-v1'
 const FILE_MIRROR_BATCH_SIZE = 24
+import { normalizeNoteAssets, pruneUnreferencedAssets } from '@/features/editor/imageAssets'
 import { collectFolderBranchIds } from '@/application/workspace/noteFilters'
 import { getWelcomeDrawing, getWelcomeMarkdown } from '@/application/workspace/welcomeContent'
 
@@ -38,6 +41,8 @@ export type WorkspaceSnapshot = {
 
 class WorkspaceService {
   private readonly fileStorage: FileStorage
+  // Image bytes are immutable and heavy; only rewrite the file when the set changes.
+  private readonly assetSignatures = new Map<NoteId, string>()
 
   constructor(fileStorage: FileStorage) {
     this.fileStorage = fileStorage
@@ -83,6 +88,8 @@ class WorkspaceService {
     await saveNote(note)
     await this.fileStorage.writeText(note.contentRef.markdownPath, '')
     await this.fileStorage.writeJson(note.contentRef.drawingPath, createEmptyDrawing())
+    await this.fileStorage.writeJson(resolveNoteAssetsPath(note), {})
+    this.assetSignatures.set(note.id, assetsSignature({}))
 
     return note
   }
@@ -112,14 +119,19 @@ class WorkspaceService {
   }
 
   async loadNoteContent(note: Note): Promise<NoteContent> {
-    const [markdown, drawing] = await Promise.all([
+    const [markdown, drawing, storedAssets] = await Promise.all([
       this.fileStorage.readText(note.contentRef.markdownPath),
       this.fileStorage.readJson<DrawingDocument>(note.contentRef.drawingPath),
+      this.fileStorage.readJson<unknown>(resolveNoteAssetsPath(note)).catch(() => null),
     ])
+    const assets = normalizeNoteAssets(storedAssets)
+
+    this.assetSignatures.set(note.id, assetsSignature(assets))
 
     return {
       markdown: markdown ?? '',
       drawing: drawing ?? createEmptyDrawing(),
+      assets,
     }
   }
 
@@ -137,6 +149,7 @@ class WorkspaceService {
         await Promise.all([
           saveStoredFile({ path: note.contentRef.markdownPath, content: content.markdown, kind: 'text' }),
           saveStoredFile({ path: note.contentRef.drawingPath, content: JSON.stringify(content.drawing), kind: 'json' }),
+          saveStoredFile({ path: resolveNoteAssetsPath(note), content: JSON.stringify(content.assets), kind: 'json' }),
         ])
       }))
     }
@@ -144,23 +157,33 @@ class WorkspaceService {
     markFileMirrorComplete()
   }
 
-  async saveNoteContent(note: Note, content: NoteContent): Promise<Note> {
+  async saveNoteContent(note: Note, content: NoteContent): Promise<{ note: Note; assets: NoteAssets }> {
     const updatedNote = markNoteContentSaved(note)
-
-    await Promise.all([
+    const assets = pruneUnreferencedAssets(content.markdown, content.assets)
+    const signature = assetsSignature(assets)
+    const writes = [
       this.fileStorage.writeText(note.contentRef.markdownPath, content.markdown),
       this.fileStorage.writeJson(note.contentRef.drawingPath, content.drawing),
       saveNote(updatedNote),
-    ])
+    ]
 
-    return updatedNote
+    if (this.assetSignatures.get(note.id) !== signature) {
+      writes.push(this.fileStorage.writeJson(resolveNoteAssetsPath(note), assets))
+    }
+
+    await Promise.all(writes)
+    this.assetSignatures.set(note.id, signature)
+
+    return { note: updatedNote, assets }
   }
 
   async deleteNote(note: Note): Promise<void> {
+    this.assetSignatures.delete(note.id)
     await Promise.all([
       deleteNoteById(note.id),
       this.fileStorage.deleteFile(note.contentRef.markdownPath),
       this.fileStorage.deleteFile(note.contentRef.drawingPath),
+      this.fileStorage.deleteFile(resolveNoteAssetsPath(note)),
     ])
     await markLocalWorkspaceChanged()
   }
@@ -193,11 +216,16 @@ class WorkspaceService {
       saveNote(welcomeNote),
       this.fileStorage.writeText(welcomeNote.contentRef.markdownPath, getWelcomeMarkdown(preferences.locale, preferences.displayName)),
       this.fileStorage.writeJson(welcomeNote.contentRef.drawingPath, getWelcomeDrawing()),
+      this.fileStorage.writeJson(resolveNoteAssetsPath(welcomeNote), {}),
     ])
   }
 }
 
 export const workspaceService = new WorkspaceService(createFileStorage())
+
+function assetsSignature(assets: NoteAssets): string {
+  return Object.values(assets).map((asset) => `${asset.id}:${asset.byteSize}`).sort().join('|')
+}
 
 function hasCompletedFileMirror(): boolean {
   if (typeof window === 'undefined') {

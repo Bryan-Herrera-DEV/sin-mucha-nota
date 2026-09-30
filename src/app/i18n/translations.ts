@@ -3,6 +3,9 @@ import type { Locale } from '@/domain/preferences/preferences'
 export const translations = {
   es: {
     imagePasteFailed: 'No se pudo pegar la imagen. Vuelve a copiarla e inténtalo de nuevo.',
+    imageTooLarge: 'La imagen sigue siendo demasiado grande después de comprimirla.',
+    imageProcessing: 'Procesando imagen…',
+    insertImage: 'Insertar imagen',
     sessionBackup: 'Copia de la sesión',
     sessionBackupBody: 'Guarda todas tus notas, carpetas, dibujos, imágenes, preferencias e historial de partidas en un ZIP. Disponible también con GitHub conectado. Las credenciales de GitHub no se incluyen.',
     exportSession: 'Exportar sesión (.zip)',
@@ -158,6 +161,9 @@ export const translations = {
   },
   en: {
     imagePasteFailed: 'Could not paste the image. Copy it again and try once more.',
+    imageTooLarge: 'The image is still too large after compressing it.',
+    imageProcessing: 'Processing image…',
+    insertImage: 'Insert image',
     sessionBackup: 'Session backup',
     sessionBackupBody: 'Save all notes, folders, drawings, images, preferences and game history in a ZIP. Also available when connected to GitHub. GitHub credentials are not included.',
     exportSession: 'Export session (.zip)',

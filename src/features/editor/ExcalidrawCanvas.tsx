@@ -3,7 +3,9 @@ import { CaptureUpdateAction, convertToExcalidrawElements, Excalidraw } from '@e
 import type { BinaryFileData, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import { toast } from 'sonner'
 import { useI18n } from '@/app/i18n/useI18n'
-import { getClipboardImages, readImageDataUrl } from './clipboardImages'
+import { getClipboardImages } from './clipboardImages'
+import { readBlobAsDataUrl } from './imageAssets'
+import { prepareImage } from './imageCompression'
 import { trackEditorTask } from './pendingEditorTasks'
 import '@excalidraw/excalidraw/index.css'
 
@@ -30,14 +32,16 @@ export default function ExcalidrawCanvas(props: ComponentProps<typeof Excalidraw
       const centerX = state.width / (2 * state.zoom.value) - state.scrollX
       const centerY = state.height / (2 * state.zoom.value) - state.scrollY
       const prepared = await Promise.all(images.map(async (file, index) => {
-        const dataURL = await readImageDataUrl(file)
+        // Excalidraw keeps its own file map, so oversized drops are compressed too.
+        const image = await prepareImage(file)
+        const dataURL = await readBlobAsDataUrl(image.blob)
         const dimensions = await getImageDimensions(dataURL)
         const scale = Math.min(1, 800 / Math.max(dimensions.width, dimensions.height))
         const width = dimensions.width * scale
         const height = dimensions.height * scale
         const id = crypto.randomUUID() as BinaryFileData['id']
         return {
-          file: { id, dataURL, mimeType: file.type, created: Date.now() } as BinaryFileData,
+          file: { id, dataURL, mimeType: image.blob.type || image.mimeType, created: Date.now() } as BinaryFileData,
           element: { type: 'image' as const, fileId: id, status: 'saved' as const,
             x: centerX - width / 2 + index * 24, y: centerY - height / 2 + index * 24, width, height },
         }

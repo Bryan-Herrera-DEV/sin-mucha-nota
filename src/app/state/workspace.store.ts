@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, subscribeWithSelector } from 'zustand/middleware'
 import type { Folder, FolderIcon, FolderId } from '@/domain/folders/folder'
-import { createEmptyDrawing, type DrawingDocument, type Note, type NoteId } from '@/domain/notes/note'
+import { createEmptyDrawing, type DrawingDocument, type Note, type NoteAssets, type NoteContent, type NoteId, type NoteImageAsset } from '@/domain/notes/note'
 import {
   createUserPreferences,
   updateUserPreferences,
@@ -29,6 +29,7 @@ import {
 } from '@/infrastructure/db/localDatabase'
 import { canUseGithubOAuth, getGithubUser, listGithubRepositories, pollGithubDeviceToken, requestGithubDeviceCode, type GithubRepository } from '@/infrastructure/github/githubApi'
 import { createZustandIndexedDbJsonStorage } from '@/infrastructure/state/zustandIndexedDbStorage'
+import { extractInlineImages } from '@/features/editor/imageAssets'
 import { getErrorMessage, reportAppError } from '@/shared/lib/appError'
 
 export type EditorMode = 'split' | 'markdown' | 'drawing' | 'preview'
@@ -63,6 +64,7 @@ type WorkspaceState = {
   activeNoteId: NoteId | null
   markdownDraft: string
   drawingDraft: DrawingDocument
+  assetsDraft: NoteAssets
   loadedContentNoteId: NoteId | null
   editorMode: EditorMode
   search: string
@@ -97,7 +99,7 @@ type WorkspaceActions = {
   moveActiveNote(folderId: FolderId | null): Promise<void>
   deleteNote(noteId: NoteId): Promise<void>
   deleteFolder(folderId: FolderId): Promise<void>
-  updateMarkdownDraft(markdown: string): void
+  updateMarkdownDraft(markdown: string, assets?: NoteImageAsset[]): void
   updateDrawingDraft(noteId: NoteId, drawing: DrawingDocument): void
   saveActiveNote(): Promise<void>
   setEditorMode(mode: EditorMode): void
@@ -133,6 +135,7 @@ const initialWorkspaceState: WorkspaceState = {
   activeNoteId: null,
   markdownDraft: '',
   drawingDraft: createEmptyDrawing(),
+  assetsDraft: {},
   loadedContentNoteId: null,
   editorMode: 'markdown',
   search: '',
@@ -180,7 +183,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             ])
             await workspaceService.mirrorNoteFilesToIndexedDb(snapshot.notes)
             const activeNote = pickActiveNote(snapshot.notes, get().activeNoteId)
-            const content = activeNote ? await workspaceService.loadNoteContent(activeNote) : null
+            const content = liftInlineImages(activeNote ? await workspaceService.loadNoteContent(activeNote) : null)
             const activeFolderId = resolveActiveFolderId(snapshot.folders, get().activeFolderId)
 
             // A sync refresh must not interrupt navigation or overwrite edits made while reading.
@@ -201,8 +204,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeNoteId: activeNote?.id ?? null,
               markdownDraft: content?.markdown ?? '',
               drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              assetsDraft: content?.assets ?? {},
               loadedContentNoteId: activeNote?.id ?? null,
-              isDirty: false,
+              isDirty: content?.migrated ?? false,
               bootStatus: 'ready',
               contentStatus: activeNote ? 'ready' : 'idle',
               lastSavedAt: activeNote?.updatedAt ?? null,
@@ -233,6 +237,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeNoteId: activeNote?.id ?? null,
               markdownDraft: content?.markdown ?? '',
               drawingDraft: content?.drawing ?? createEmptyDrawing(),
+              assetsDraft: content?.assets ?? {},
               loadedContentNoteId: activeNote?.id ?? null,
               isDirty: false,
               bootStatus: 'ready',
@@ -271,6 +276,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             activeNoteId: noteId,
             markdownDraft: '',
             drawingDraft: createEmptyDrawing(),
+            assetsDraft: {},
             loadedContentNoteId: null,
             isDirty: false,
             contentStatus: 'loading',
@@ -278,7 +284,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           })
 
           try {
-            const content = await workspaceService.loadNoteContent(note)
+            const content = liftInlineImages(await workspaceService.loadNoteContent(note))
 
             if (get().activeNoteId !== noteId) {
               return
@@ -287,8 +293,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             set({
               markdownDraft: content.markdown,
               drawingDraft: content.drawing,
+              assetsDraft: content.assets,
               loadedContentNoteId: noteId,
-              isDirty: false,
+              isDirty: content.migrated,
               contentStatus: 'ready',
               lastSavedAt: note.updatedAt,
             })
@@ -343,6 +350,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               activeFolderId: folderId,
               markdownDraft: '',
               drawingDraft: createEmptyDrawing(),
+              assetsDraft: {},
               loadedContentNoteId: note.id,
               isDirty: false,
               contentStatus: 'ready',
@@ -467,12 +475,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             set({ errorMessage: handleStoreError(error, 'deleteFolder') })
           }
         },
-        updateMarkdownDraft(markdown) {
+        updateMarkdownDraft(markdown, assets) {
           if (get().activeNoteId !== get().loadedContentNoteId) {
             return
           }
 
-          set({ markdownDraft: markdown, isDirty: true })
+          set((state) => ({
+            markdownDraft: markdown,
+            assetsDraft: assets?.length
+              ? { ...state.assetsDraft, ...Object.fromEntries(assets.map((asset) => [asset.id, asset])) }
+              : state.assetsDraft,
+            isDirty: true,
+          }))
         },
         updateDrawingDraft(noteId, drawing) {
           if (get().activeNoteId !== noteId || get().loadedContentNoteId !== noteId) {
@@ -497,12 +511,14 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           }
 
           set({ contentStatus: 'saving', errorMessage: null })
-          const draft = { markdown: get().markdownDraft, drawing: get().drawingDraft }
+          const draft = { markdown: get().markdownDraft, drawing: get().drawingDraft, assets: get().assetsDraft }
           noteSaveInFlight = (async () => {
             try {
-              const savedNote = await workspaceService.saveNoteContent(activeNote, draft)
+              const { note: savedNote, assets } = await workspaceService.saveNoteContent(activeNote, draft)
               set((state) => ({
                 notes: state.notes.map((note) => (note.id === savedNote.id ? savedNote : note)),
+                // Images dropped from the text are pruned on save; keep the draft in sync.
+                assetsDraft: state.activeNoteId === savedNote.id && state.markdownDraft === draft.markdown ? assets : state.assetsDraft,
                 contentStatus: state.activeNoteId === savedNote.id ? 'ready' : state.contentStatus,
                 isDirty: state.activeNoteId === savedNote.id ? state.markdownDraft !== draft.markdown || !areDrawingsEqual(state.drawingDraft, draft.drawing) : state.isDirty,
                 lastSavedAt: state.activeNoteId === savedNote.id ? savedNote.updatedAt : state.lastSavedAt,
@@ -744,6 +760,16 @@ function createDrawingSignature(drawing: DrawingDocument): string {
   } catch {
     return `${drawing.elements.length}:${Object.keys(drawing.files).length}:${Object.keys(drawing.appState).join(',')}`
   }
+}
+
+// Opening a note written with inline base64 moves the bytes to the asset file;
+// the normal autosave then persists the shorter text.
+function liftInlineImages<T extends NoteContent | null>(content: T): T extends null ? null : NoteContent & { migrated: boolean } {
+  if (!content) return null as never
+
+  const extracted = extractInlineImages(content.markdown, content.assets)
+
+  return { ...content, ...extracted, migrated: extracted !== null } as never
 }
 
 function pickActiveNote(notes: Note[], activeNoteId: NoteId | null): Note | null {

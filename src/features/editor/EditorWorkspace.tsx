@@ -18,6 +18,7 @@ import { MarkdownPreview } from '@/features/editor/MarkdownPreview'
 import { MarkdownEditor } from '@/features/editor/MarkdownEditor'
 
 const editorModes: EditorMode[] = ['markdown', 'preview', 'drawing', 'split']
+const IMAGE_MARKDOWN = /!\[[^\]]*\]\([^)]*\)/g
 
 export function EditorWorkspace() {
   const { t } = useI18n()
@@ -28,6 +29,7 @@ export function EditorWorkspace() {
   const search = useWorkspaceStore((state) => state.search)
   const markdownDraft = useWorkspaceStore((state) => state.markdownDraft)
   const drawingDraft = useWorkspaceStore((state) => state.drawingDraft)
+  const assetsDraft = useWorkspaceStore((state) => state.assetsDraft)
   const loadedContentNoteId = useWorkspaceStore((state) => state.loadedContentNoteId)
   const editorMode = useWorkspaceStore((state) => state.editorMode)
   const isDirty = useWorkspaceStore((state) => state.isDirty)
@@ -216,7 +218,7 @@ export function EditorWorkspace() {
                       <MarkdownEditor key={`${activeNote.id}:${sessionRevision}`} />
                     )}
 
-                    {editorMode === 'preview' && <div><MarkdownPreview markdown={deferredMarkdown} /></div>}
+                    {editorMode === 'preview' && <div><MarkdownPreview assets={assetsDraft} markdown={deferredMarkdown} /></div>}
 
                     {(editorMode === 'split' || editorMode === 'drawing') && <div className="min-h-0"><ExcalidrawPanel key={`${activeNote.id}:${sessionRevision}`} drawing={drawingDraft} noteId={activeNote.id} onChange={updateDrawingDraft} /></div>}
                   </section>
@@ -255,7 +257,8 @@ type NoteCardProps = {
 
 const NoteCard = memo(function NoteCard({ note, folder, fallbackFolderLabel, active, markdownPreview, onSelect }: NoteCardProps) {
   const { t } = useI18n()
-  const excerpt = markdownPreview.slice(0, 600).trim().replace(/[#*_>`-]/g, '').replace(/\s+/g, ' ').slice(0, 150)
+  // Image references would otherwise fill the card with unreadable ids.
+  const excerpt = markdownPreview.replace(IMAGE_MARKDOWN, '').slice(0, 600).trim().replace(/[#*_>`-]/g, '').replace(/\s+/g, ' ').slice(0, 150)
 
   return (
     <NoteMenu note={note}><article className={cn('note-card group w-64 shrink-0 rounded-lg border p-3 transition lg:w-full', active ? 'note-card-active border-[var(--accent)]' : 'border-white/10 hover:border-white/20')}>

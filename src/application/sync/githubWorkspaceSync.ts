@@ -1,5 +1,5 @@
 import type { Folder } from '@/domain/folders/folder'
-import { createEmptyDrawing, type Note } from '@/domain/notes/note'
+import { createEmptyDrawing, resolveNoteAssetsPath, type Note } from '@/domain/notes/note'
 import { normalizeSoundVolume, type UserPreferences } from '@/domain/preferences/preferences'
 import type { ISODate } from '@/domain/shared/valueObjects'
 import {
@@ -43,6 +43,7 @@ import {
 import { AppError, reportAppError } from '@/shared/lib/appError'
 
 const WORKSPACE_FILE_NAME = 'workspace.json'
+const EMPTY_ASSETS = '{}'
 const GITHUB_COMMIT_MESSAGE = 'sync: actualizar notas'
 const MAX_REF_UPDATE_ATTEMPTS = 3
 let syncInFlight: Promise<GithubSyncResult> | null = null
@@ -234,10 +235,15 @@ async function createLocalWorkspaceSnapshot(config: GithubSyncConfig): Promise<L
   ]
 
   for (const note of notes) {
-    const [markdownFile, drawingFile] = await Promise.all([loadStoredFile(note.contentRef.markdownPath), loadStoredFile(note.contentRef.drawingPath)])
+    const [markdownFile, drawingFile, assetsFile] = await Promise.all([
+      loadStoredFile(note.contentRef.markdownPath),
+      loadStoredFile(note.contentRef.drawingPath),
+      loadStoredFile(resolveNoteAssetsPath(note)),
+    ])
 
     files.push({ path: createNoteMarkdownPath(config, note), content: markdownFile?.content ?? '' })
     files.push({ path: createNoteDrawingPath(config, note), content: drawingFile?.content ?? JSON.stringify(createEmptyDrawing(), null, 2) })
+    files.push({ path: createNoteAssetsPath(config, note), content: assetsFile?.content ?? EMPTY_ASSETS })
   }
 
   return { document, files }
@@ -277,11 +283,14 @@ async function readRemoteWorkspaceSnapshot(accessToken: string, config: GithubSy
   for (const note of document.notes) {
     const markdownPath = createNoteMarkdownPath(config, note)
     const drawingPath = createNoteDrawingPath(config, note)
+    const assetsPath = createNoteAssetsPath(config, note)
     const markdownEntry = remoteEntries.get(markdownPath)
     const drawingEntry = remoteEntries.get(drawingPath)
+    const assetsEntry = remoteEntries.get(assetsPath)
 
     files.set(markdownPath, markdownEntry?.sha ? await readRemoteBlob(accessToken, config, markdownEntry.sha) : '')
     files.set(drawingPath, drawingEntry?.sha ? await readRemoteBlob(accessToken, config, drawingEntry.sha) : JSON.stringify(createEmptyDrawing(), null, 2))
+    files.set(assetsPath, assetsEntry?.sha ? await readRemoteBlob(accessToken, config, assetsEntry.sha) : EMPTY_ASSETS)
   }
 
   return { document, files, remotePaths, headSha: ref.object.sha, treeSha: commit.tree.sha, empty: false, preferenceSoundVolumeMissing }
@@ -396,7 +405,12 @@ async function applyRemoteWorkspaceSnapshot(document: GithubWorkspaceDocument, f
     currentNotes
       .filter((note) => !remoteNoteIds.has(note.id))
       .map(async (note) => {
-        await Promise.all([deleteNoteById(note.id), deleteStoredFile(note.contentRef.markdownPath), deleteStoredFile(note.contentRef.drawingPath)])
+        await Promise.all([
+          deleteNoteById(note.id),
+          deleteStoredFile(note.contentRef.markdownPath),
+          deleteStoredFile(note.contentRef.drawingPath),
+          deleteStoredFile(resolveNoteAssetsPath(note)),
+        ])
       }),
   )
 
@@ -411,6 +425,7 @@ async function applyRemoteWorkspaceSnapshot(document: GithubWorkspaceDocument, f
     document.notes.flatMap((note) => [
       saveStoredFile({ path: note.contentRef.markdownPath, content: files.get(createNoteMarkdownPath(config, note)) ?? '', kind: 'text' }),
       saveStoredFile({ path: note.contentRef.drawingPath, content: files.get(createNoteDrawingPath(config, note)) ?? JSON.stringify(createEmptyDrawing()), kind: 'json' }),
+      saveStoredFile({ path: resolveNoteAssetsPath(note), content: files.get(createNoteAssetsPath(config, note)) ?? EMPTY_ASSETS, kind: 'json' }),
     ]),
   )
 
@@ -443,11 +458,15 @@ function mergeWorkspaceSnapshots(localSnapshot: LocalWorkspaceSnapshot, remoteSn
     const useRemoteFiles = Boolean(remoteNote && (!localNote || toTime(remoteNote.updatedAt) > toTime(localNote.updatedAt)))
     const markdownPath = createNoteMarkdownPath(config, note)
     const drawingPath = createNoteDrawingPath(config, note)
+    const assetsPath = createNoteAssetsPath(config, note)
     const markdown = pickFileContent(useRemoteFiles, remoteSnapshot.files.get(markdownPath), localFiles.get(markdownPath), '')
     const drawing = pickFileContent(useRemoteFiles, remoteSnapshot.files.get(drawingPath), localFiles.get(drawingPath), JSON.stringify(createEmptyDrawing(), null, 2))
+    // Images must follow the Markdown that references them, never the other side.
+    const assets = pickFileContent(useRemoteFiles, remoteSnapshot.files.get(assetsPath), localFiles.get(assetsPath), EMPTY_ASSETS)
 
     files.push({ path: markdownPath, content: markdown })
     files.push({ path: drawingPath, content: drawing })
+    files.push({ path: assetsPath, content: assets })
   }
 
   return { document, files }
@@ -556,6 +575,10 @@ function createNoteMarkdownPath(config: GithubSyncConfig, note: Note): string {
 
 function createNoteDrawingPath(config: GithubSyncConfig, note: Note): string {
   return `${normalizeBasePath(config.basePath)}/notes/${note.id}/drawing.excalidraw.json`
+}
+
+function createNoteAssetsPath(config: GithubSyncConfig, note: Note): string {
+  return `${normalizeBasePath(config.basePath)}/notes/${note.id}/assets.json`
 }
 
 function normalizeBasePath(basePath: string): string {

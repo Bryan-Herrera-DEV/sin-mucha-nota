@@ -14,10 +14,22 @@ npm run benchmark
 
 ## Imágenes y copias de sesión
 
-Puedes pegar imágenes con `Ctrl+V` (o `Cmd+V`) en Markdown y Excalidraw.
-Las imágenes de Markdown quedan incrustadas en la nota y se muestran en Preview;
-las de Excalidraw se guardan junto con el dibujo. Ambas viajan con la sincronización
-de GitHub y con las copias ZIP, sin depender del portapapeles ni de URLs temporales.
+Puedes añadir imágenes de tres formas en Markdown: `Ctrl+V` (o `Cmd+V`), arrastrándolas
+sobre el editor, o con **Insertar imagen**. En Excalidraw se pegan con `Ctrl+V`.
+
+El Markdown **no guarda base64**: solo una referencia corta `![alt](asset:<id>)`. Los bytes
+van al file storage del navegador (OPFS, con IndexedDB de reserva) en `assets.json`, junto
+al `.md` y al `.excalidraw.json` de la nota. Preview los muestra con una URL `blob:`, así
+que el editor nunca maneja cadenas de megabytes. Si abres una nota antigua con base64
+incrustado, se traslada al `assets.json` en el siguiente guardado automático.
+
+Las imágenes de más de 8 MB se comprimen en el navegador antes de guardarse: se reduce el
+lado mayor a 4096 px y se reencoda a WebP (JPEG si el navegador no lo soporta) bajando
+calidad y tamaño hasta acercarse a 4 MB. Los GIF y SVG nunca se reencodan, para no perder
+la animación ni el vector. El límite duro por imagen es de 16 MB.
+
+Al borrar una imagen del texto, su archivo se descarta en el siguiente guardado. Todo
+—notas, dibujos e imágenes— viaja con la sincronización de GitHub y con las copias ZIP.
 
 En **Configuración → Copia de la sesión** están **Exportar sesión (.zip)** e
 **Importar sesión (.zip)**, también cuando GitHub está conectado. El ZIP incluye

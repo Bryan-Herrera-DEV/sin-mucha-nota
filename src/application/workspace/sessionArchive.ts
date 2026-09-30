@@ -1,6 +1,6 @@
 import { strFromU8, strToU8, unzip, zip } from 'fflate'
 import type { Folder } from '@/domain/folders/folder'
-import type { Note } from '@/domain/notes/note'
+import { resolveNoteAssetsPath, type Note } from '@/domain/notes/note'
 import { fontOptions, themeOptions, type UserPreferences } from '@/domain/preferences/preferences'
 import type { GithubSyncConfig } from '@/infrastructure/db/localDatabase'
 import type { GameScores } from '@/features/dashboard/gameScores'
@@ -87,6 +87,11 @@ export async function decodeSession(bytes: Uint8Array): Promise<SessionData> {
       check(validPath(path) && !Object.hasOwn(files, path) && Object.hasOwn(entries, `content/${path}`), 'Falta un archivo de la sesión o su ruta es inválida.')
       files[path] = strFromU8(entries[`content/${path}`])
     }
+    // Backups made before pasted images were stored outside the Markdown have no assets file.
+    const assetsPath = resolveNoteAssetsPath(note)
+    check(validPath(assetsPath) && !Object.hasOwn(files, assetsPath), 'La ruta de las imágenes de la nota es inválida.')
+    files[assetsPath] = Object.hasOwn(entries, `content/${assetsPath}`) ? strFromU8(entries[`content/${assetsPath}`]) : '{}'
+    validateAssets(JSON.parse(files[assetsPath]))
     validateDrawing(JSON.parse(files[note.contentRef.drawingPath]))
   }
   const view = data.view
@@ -120,6 +125,14 @@ function validatePreferences(value: unknown): void {
     && ['es', 'en'].includes(value.locale as string) && typeof value.soundEnabled === 'boolean'
     && typeof value.soundVolume === 'number' && value.soundVolume >= 0 && value.soundVolume <= 1
     && validDate(value.onboardedAt) && validDate(value.updatedAt), 'Preferencias inválidas.')
+}
+
+function validateAssets(value: unknown): void {
+  check(isRecord(value), 'Imágenes de la nota inválidas.')
+  for (const [id, asset] of Object.entries(value)) {
+    check(isRecord(asset) && asset.id === id && typeof asset.dataUrl === 'string' && asset.dataUrl.startsWith('data:image/')
+      && typeof asset.mimeType === 'string' && typeof asset.name === 'string', 'Imagen de la nota inválida.')
+  }
 }
 
 function validateDrawing(value: unknown): void {

@@ -3,7 +3,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { decodeSession, encodeSession, type SessionData } from '@/application/workspace/sessionArchive'
 import { exportSession, importSession } from '@/application/workspace/sessionTransfer'
 import { createFolder } from '@/domain/folders/folder'
-import { createNote } from '@/domain/notes/note'
+import { createNote, resolveNoteAssetsPath } from '@/domain/notes/note'
 import { createUserPreferences } from '@/domain/preferences/preferences'
 import { getLocalDatabase, loadStoredFile, saveGithubAuth } from '@/infrastructure/db/localDatabase'
 import { useWorkspaceStore } from '@/app/state/workspace.store'
@@ -11,6 +11,8 @@ import { workspaceService } from '@/application/workspace/workspaceService'
 import { loadGameScores } from '@/features/dashboard/gameScores'
 
 const dataUrl = 'data:image/png;base64,iVBORw0KGgo='
+const assetId = 'a'.repeat(32)
+const asset = { id: assetId, name: 'imagen.png', mimeType: 'image/png', byteSize: 11, createdAt: '2026-01-01T00:00:00.000Z', dataUrl }
 
 function fixture(): SessionData {
   const folder = createFolder({ name: 'Árbol', parentId: null })
@@ -19,7 +21,8 @@ function fixture(): SessionData {
   return {
     preferences: createUserPreferences({ displayName: 'Prueba', locale: 'es', accentColor: '#789abc', fontFamily: 'mono' }),
     folders: [folder, child], notes: [note],
-    files: { [note.contentRef.markdownPath]: `# Hola\n![imagen](${dataUrl})`,
+    files: { [note.contentRef.markdownPath]: `# Hola\n![imagen](asset:${assetId})`,
+      [resolveNoteAssetsPath(note)]: JSON.stringify({ [assetId]: asset }),
       [note.contentRef.drawingPath]: JSON.stringify({ elements: [{ id: 'image1', type: 'image', fileId: 'file1' }], appState: {},
         files: { file1: { id: 'file1', dataURL: dataUrl, mimeType: 'image/png', created: 1 } } }) },
     view: { activeFolderId: child.id, activeNoteId: note.id, editorMode: 'split', sidebarCollapsed: true, workspaceView: 'notes', search: 'imagen' },
@@ -43,6 +46,16 @@ describe('session ZIP', () => {
     expect(Array.from(bytes.slice(0, 2))).toEqual([80, 75])
     const restored = await decodeSession(bytes)
     expect(restored).toEqual({ ...original, githubConfig: { ...original.githubConfig, enabled: false, initialSyncStrategy: null } })
+  })
+
+  it('restores a backup made before images moved out of the Markdown', async () => {
+    const original = fixture()
+    original.files[original.notes[0].contentRef.markdownPath] = `# Hola\n![imagen](${dataUrl})`
+    const entries = unzipSync(await encodeSession(original))
+    delete entries[`content/${resolveNoteAssetsPath(original.notes[0])}`]
+    const restored = await decodeSession(zipSync(entries))
+    expect(restored.files[resolveNoteAssetsPath(original.notes[0])]).toBe('{}')
+    expect(restored.files[original.notes[0].contentRef.markdownPath]).toContain(dataUrl)
   })
 
   it('rejects missing note files before any session can be restored', async () => {
@@ -83,11 +96,16 @@ describe('session ZIP', () => {
     expect(loadGameScores()).toEqual(original.gameScores)
     const note = state.notes[0]
     expect(note.contentRef.markdownPath).toMatch(/^sessions\//)
-    expect((await loadStoredFile(note.contentRef.markdownPath))?.content).toContain(dataUrl)
-    expect((await workspaceService.loadNoteContent(note)).drawing.files).toHaveProperty('file1')
+    // The bytes stay in the file storage; the note text only keeps the reference.
+    expect((await loadStoredFile(note.contentRef.markdownPath))?.content).toContain(`asset:${assetId}`)
+    expect((await loadStoredFile(resolveNoteAssetsPath(note)))?.content).toContain(dataUrl)
+    expect(state.assetsDraft[assetId].dataUrl).toBe(dataUrl)
+    const loaded = await workspaceService.loadNoteContent(note)
+    expect(loaded.drawing.files).toHaveProperty('file1')
+    expect(loaded.assets[assetId].dataUrl).toBe(dataUrl)
     const database = await getLocalDatabase()
     expect((await database.get('githubAuth', 'auth'))?.accessToken).toBe('test-secret-must-not-export')
-    useWorkspaceStore.getState().updateMarkdownDraft('# Unsaved image\n' + dataUrl)
+    useWorkspaceStore.getState().updateMarkdownDraft(`# Unsaved image\n![imagen](asset:${assetId})`)
     // Export must save the current draft even before the autosave timer fires.
     const archive = await exportSession()
     const bytes = new Uint8Array(await new Promise<ArrayBuffer>((resolve) => {
@@ -98,7 +116,8 @@ describe('session ZIP', () => {
     const entries = unzipSync(bytes)
     expect(strFromU8(entries['session.json'])).not.toContain('test-secret')
     const decoded = await decodeSession(bytes)
-    expect(decoded.files[note.contentRef.markdownPath]).toBe('# Unsaved image\n' + dataUrl)
+    expect(decoded.files[note.contentRef.markdownPath]).toBe(`# Unsaved image\n![imagen](asset:${assetId})`)
+    expect(JSON.parse(decoded.files[resolveNoteAssetsPath(note)])[assetId].dataUrl).toBe(dataUrl)
     expect(JSON.parse(decoded.files[note.contentRef.drawingPath]).files.file1.dataURL).toBe(dataUrl)
   })
 
