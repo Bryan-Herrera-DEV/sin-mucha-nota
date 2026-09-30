@@ -36,10 +36,24 @@ it('accepts images whose clipboard entry carries no MIME type', () => {
   expect(getClipboardImages({ files: [file], items: [] } as unknown as DataTransfer)).toEqual([file])
 })
 
-it('supports browsers exposing image files only through clipboard items, without duplicating them', () => {
+it('supports browsers exposing image files only through clipboard items', () => {
   const file = new File(['image'], 'clipboard.png', { type: 'image/png' })
-  expect(getClipboardImages({ files: [file], items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }] } as unknown as DataTransfer)).toEqual([file])
   expect(getClipboardImages({ files: [], items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }] } as unknown as DataTransfer)).toEqual([file])
+})
+
+it('pastes one image when the clipboard exposes it through both files and items', async () => {
+  // Real browsers mint a distinct File on every getAsFile() call, with its own
+  // lastModified, so the same screenshot cannot be recognised across both lists.
+  const asFile = () => new File(['image'], 'captura.png', { type: 'image/png' })
+  const both = { files: [asFile()], items: [{ kind: 'file', type: 'image/png', getAsFile: asFile }], types: ['Files'], getData: () => '' }
+  expect(getClipboardImages(both as unknown as DataTransfer)).toHaveLength(1)
+
+  render(<MarkdownEditor />)
+  fireEvent.paste(screen.getByRole('textbox'), { clipboardData: both })
+  const { waitForEditorTasks } = await import('@/features/editor/pendingEditorTasks')
+  await waitForEditorTasks()
+  expect(useWorkspaceStore.getState().markdownDraft.match(/!\[captura\]\(asset:/g)).toHaveLength(1)
+  expect(Object.keys(useWorkspaceStore.getState().assetsDraft)).toHaveLength(1)
 })
 
 it('links a remote image when the clipboard only carries HTML', async () => {

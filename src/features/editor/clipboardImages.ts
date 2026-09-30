@@ -8,24 +8,17 @@ const REMOTE_IMAGE_URL = /^https?:\/\/\S+$/i
 export function getClipboardImages(data: DataTransfer | null): File[] {
   if (!data) return []
 
-  const images: File[] = []
-  const seen = new Set<string>()
-  const add = (file: File | null) => {
-    if (!file || !isImageFile(file)) return
-    const key = `${file.name}:${file.size}:${file.lastModified}`
-    if (seen.has(key)) return
-    seen.add(key)
-    images.push(file)
-  }
+  // `files` and `items` describe the SAME clipboard payload, so they must never be
+  // combined: `getAsFile()` mints a fresh File on every call, with its own
+  // `lastModified`, so the duplicate is impossible to detect and gets pasted twice.
+  const files = safeList(() => Array.from(data.files)).filter(isImageFile)
 
-  for (const file of safeList(() => Array.from(data.files))) add(file)
+  if (files.length) return files
 
-  for (const item of safeList(() => Array.from(data.items))) {
+  return safeList(() => Array.from(data.items))
     // getAsFile() must run synchronously, while the clipboard data is still alive.
-    if (item.kind === 'file') add(item.getAsFile())
-  }
-
-  return images
+    .map((item) => (item.kind === 'file' ? item.getAsFile() : null))
+    .filter((file): file is File => file !== null && isImageFile(file))
 }
 
 export function isImageFile(file: File): boolean {
