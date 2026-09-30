@@ -56,36 +56,11 @@ Este repo incluye `netlify.toml` para publicar la app y activar el proxy OAuth d
 4. No agregues `VITE_GITHUB_OAUTH_PROXY_URL` en Netlify, salvo que quieras sobreescribirlo; el valor del repo ya es `/github-oauth`.
 5. Publica el sitio.
 
-En Netlify, `/github-oauth/device/code` y `/github-oauth/access_token` se reescriben hacia GitHub con redirects proxy, asi el navegador no llama directamente a `github.com` ni a GitHub Pages.
+En Netlify, `/github-oauth/device/code` y `/github-oauth/access_token` se reescriben hacia GitHub con redirects proxy, asi el navegador no llama directamente a `github.com`.
 
-## Publicar en GitHub Pages
-
-Este repo usa GitHub Actions para publicar el build de Vite en GitHub Pages.
-
-1. En GitHub ve a `Settings` > `Pages`.
-2. En `Build and deployment`, elige `Source: GitHub Actions`.
-3. Haz push a `main`.
-4. La app quedara publicada en `https://bryan-herrera-dev.github.io/sin-mucha-nota/`.
-
-Si quieres que el Sync con GitHub funcione en Pages, agrega `VITE_GITHUB_CLIENT_ID` y
-`VITE_GITHUB_OAUTH_PROXY_URL` en `Settings` > `Secrets and variables` > `Actions` > `Secrets`:
-
-```env
-VITE_GITHUB_CLIENT_ID=tu_client_id_de_oauth_app
-VITE_GITHUB_OAUTH_PROXY_URL=https://tu-dominio.com/github-oauth
-```
-
-El workflow accede al Client ID con el contexto `secrets`; los valores guardados en
-`Secrets` no estan disponibles mediante el contexto `vars`. Ten en cuenta que Vite
-incluye cualquier variable con prefijo `VITE_` en el bundle del navegador, por lo que
-el Client ID no debe considerarse confidencial. No configures el Client Secret de la
-OAuth App como una variable `VITE_`.
-
-Para probar el build de Pages localmente ejecuta:
-
-```bash
-npm run build:pages
-```
+Netlify es el unico despliegue del proyecto: es el que puede servir el proxy OAuth desde
+el propio dominio. Un hosting estatico sin reescrituras no puede, y ahi el Sync con GitHub
+queda desactivado salvo que publiques un proxy aparte.
 
 ## GitHub OAuth
 
@@ -104,3 +79,7 @@ VITE_GITHUB_OAUTH_PROXY_URL=https://tu-dominio.com/github-oauth
 ```
 
 Si no configuras el proxy en produccion, la app seguira funcionando y solo desactivara la conexion con GitHub para evitar errores de OAuth en el front.
+
+Ten en cuenta que Vite incluye cualquier variable con prefijo `VITE_` en el bundle del
+navegador, por lo que el Client ID no debe considerarse confidencial. No configures el
+Client Secret de la OAuth App como una variable `VITE_`.

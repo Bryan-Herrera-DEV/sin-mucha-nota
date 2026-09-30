@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: mode === 'pages' ? '/sin-mucha-nota/' : '/',
+// Netlify serves the app from the domain root, so the default base is enough.
+export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
@@ -27,4 +27,4 @@ export default defineConfig(({ mode }) => ({
       '@': '/src',
     },
   },
-}))
+})
