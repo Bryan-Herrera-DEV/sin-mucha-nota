@@ -52,6 +52,13 @@
     "vitest": "^5.0.3"
   },
   "overrides": {
-    "lodash-es": "^4.18.1"
+    "lodash-es": "^4.18.1",
+    "fast-uri": "^3.1.8",
+    "@excalidraw/excalidraw": {
+      "nanoid": "^3.3.19"
+    },
+    "@excalidraw/mermaid-to-excalidraw": {
+      "nanoid": "^5.1.16"
+    }
   }
 }
