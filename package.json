@@ -52,7 +52,7 @@
   },
   "overrides": {
     "lodash-es": "^4.18.1",
-    "fast-uri": "^3.1.8",
+    "fast-uri": "^3.1.9",
     "@excalidraw/excalidraw": {
       "nanoid": "^3.3.19"
     },
